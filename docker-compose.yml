@@ -1,12 +1,22 @@
-jupyter:
-  build: .
+notebooks:
+  build: ./python2
   ports:
     - "0.0.0.0:8888:8888"
     - "0.0.0.0:6006:6006"
   volumes:
-    - ./:/home/ds/notebooks
-    - ./jupyter:/home/ds/.jupyter
+    - ./notebooks:/home/ds/notebooks
+    - ./notebooks/jupyter:/home/ds/.jupyter
+    - ./libs:/home/ds/notebooks/libs
   links:
+    - mongo
+    
+bot:
+ build: ./python2
+ volumes:
+   - ./bot:/home/ds/notebooks
+   - ./libs:/home/ds/notebooks/libs
+ command: /opt/ds/bin/python -u /home/ds/notebooks/bot.py
+ links:
     - mongo
 
 

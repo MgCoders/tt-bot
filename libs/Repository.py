@@ -1,0 +1,40 @@
+#!/bin/python
+# -*- coding: utf-8 -*-
+from pymongo import MongoClient
+import pymongo
+import json
+import datetime
+from random import randint
+from bson.objectid import ObjectId
+
+
+class Repository(object):
+    """
+    Clase para operaciones con colecciones de datos.
+    """
+    
+    def __init__(self,dbcoll,dbdb,mongostring=None):
+        if not mongostring:
+            keys = {}
+            exec(open('libs/key_all.py').read(), keys)
+        self.client = MongoClient(keys['mongostring'])
+        self.db_name = dbdb
+        self.data_coll_name = dbcoll
+        self.client.server_info()
+        
+    def getCollection(self):
+        return self.client[self.db_name][self.data_coll_name]
+     
+    def findData(self,criteria=""):
+        """
+        Devuelve todos como lista
+        """
+        return list(self.getDataCollection().find(criteria))
+    
+
+    def updateOne(self,id,field,value):
+        """
+        Actualiza field con value para el que tiene _id = id.
+        """
+        return self.getDataCollection().update_one({'_id': ObjectId(id) }, {'$set': {field: value}})
+   

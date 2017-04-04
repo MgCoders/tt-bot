@@ -5,10 +5,10 @@
 import logging
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, InlineQueryHandler, CallbackQueryHandler
 from telegram import InlineQueryResultArticle, InputTextMessageContent
-from bot_utils import start,echo,caps,inline_caps,button
+from libs.bot_utils import start,echo,caps,inline_caps,button
 
 keys = {}
-exec(open('key_all.py').read(), keys)
+exec(open('libs/key_all.py').read(), keys)
 
 updater = Updater(token=keys['telegram'])
 dispatcher = updater.dispatcher
