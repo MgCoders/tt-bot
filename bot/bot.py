@@ -5,8 +5,8 @@
 import logging
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, InlineQueryHandler, CallbackQueryHandler,ConversationHandler,RegexHandler
 from telegram import InlineQueryResultArticle, InputTextMessageContent
-from libs.bot_utils import start,contact,error,elegir,registrar,done
-from libs.bot_utils import IDENTIFICACION, ELEGIR, REGISTRAR
+from libs.bot_utils import start,contact,error,elegir,registrar,done,opciones
+from libs.bot_utils import IDENTIFICACION, OPCIONES, ELEGIR, REGISTRAR
 
 keys = {}
 exec(open('libs/key_all.py').read(), keys)
@@ -19,7 +19,8 @@ conv_handler = ConversationHandler(
 	entry_points=[CommandHandler('start', start)],
         states={
             IDENTIFICACION: [MessageHandler(Filters.contact, contact)],
-            ELEGIR: [MessageHandler(Filters.text, elegir, pass_user_data=True)],
+            OPCIONES: [CallbackQueryHandler(opciones)],
+            ELEGIR: [CallbackQueryHandler(elegir)],
             REGISTRAR: [MessageHandler(Filters.text, registrar, pass_user_data=True)],
         },
         fallbacks=[RegexHandler('^Done$', done, pass_user_data=True)]
