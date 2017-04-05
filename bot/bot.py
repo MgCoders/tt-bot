@@ -3,27 +3,34 @@
 
 
 import logging
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, InlineQueryHandler, CallbackQueryHandler
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, InlineQueryHandler, CallbackQueryHandler,ConversationHandler,RegexHandler
 from telegram import InlineQueryResultArticle, InputTextMessageContent
-from libs.bot_utils import start,echo,caps,inline_caps,button,contact
+from libs.bot_utils import start,contact,error,elegir,registrar,done
+from libs.bot_utils import IDENTIFICACION, ELEGIR, REGISTRAR
 
 keys = {}
 exec(open('libs/key_all.py').read(), keys)
-
 updater = Updater(token=keys['telegram'])
+
+
 dispatcher = updater.dispatcher
 
+conv_handler = ConversationHandler(
+	entry_points=[CommandHandler('start', start)],
+        states={
+            IDENTIFICACION: [MessageHandler(Filters.contact, contact)],
+            ELEGIR: [MessageHandler(Filters.text, elegir, pass_user_data=True)],
+            REGISTRAR: [MessageHandler(Filters.text, registrar, pass_user_data=True)],
+        },
+        fallbacks=[RegexHandler('^Done$', done, pass_user_data=True)]
+    )
+dispatcher.add_handler(conv_handler)
 
-start_handler = CommandHandler('start', start)
-dispatcher.add_handler(start_handler)
-dispatcher.add_handler(CallbackQueryHandler(button))
 
-echo_handler = MessageHandler(Filters.text, echo)
-dispatcher.add_handler(echo_handler)
 
-contact_handler = MessageHandler(Filters.contact, contact)
-dispatcher.add_handler(contact_handler)
 
+# log all errors
+dispatcher.add_error_handler(error)
 
 updater.start_polling()
 updater.idle()

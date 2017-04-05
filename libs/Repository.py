@@ -25,16 +25,15 @@ class Repository(object):
     def getCollection(self):
         return self.client[self.db_name][self.data_coll_name]
      
-    def findData(self,criteria=""):
+    def find(self,criteria=""):
         """
         Devuelve todos como lista
         """
-        return list(self.getDataCollection().find(criteria))
+        return list(self.getCollection().find(criteria))
     
-
-    def updateOne(self,id,field,value):
+    def update_one(self,id,field,value):
         """
         Actualiza field con value para el que tiene _id = id.
         """
-        return self.getDataCollection().update_one({'_id': ObjectId(id) }, {'$set': {field: value}})
+        return self.getCollection().update_one({'_id': ObjectId(id) }, {'$set': {field: value}})
    
