@@ -11,7 +11,7 @@ from libs.Repository import Repository
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',level=logging.INFO)
 logger = logging.getLogger(__name__)
 # Estados
-IDENTIFICACION, OPCIONES, ELEGIR, REGISTRAR = range(4)
+IDENTIFICACION, OPCIONES, ELEGIR_RUTINA, ELEGIR_ACTIVIDAD, REGISTRAR = range(5)
 # Database
 usuarios = Repository('usuarios','gymbot')
 rutinas = Repository('rutinas','gymbot')  
@@ -39,13 +39,15 @@ def opciones(bot,update):
     usuario = usuarios.getCollection().find_one({'chat_id':update.callback_query.from_user.id})
     logger.info('Opciones ({}), Opción {}'.format(utf8(usuario['nombre']),update.callback_query.data))
     keyboard = [
-        [InlineKeyboardButton(text="Entrenar", callback_data='1'),InlineKeyboardButton(text="Ver", callback_data='2')],
-        [InlineKeyboardButton(text="Nada", callback_data='3')]
+        [InlineKeyboardButton(text="Entrenar", callback_data='opcion_entrenar'),InlineKeyboardButton(text="Ver", callback_data='opcion_ver')],
+        [InlineKeyboardButton(text="Nada", callback_data='opcion_nada')]
         ]
     reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=False, one_time_keyboard=True)
-    bot.send_message(chat_id=update.callback_query.from_user.id,
-        text="¿Que querés hacer?", reply_markup=reply_markup)
-    return ELEGIR
+    
+    update.callback_query.answer("Siempre listo!")
+    update.callback_query.edit_message_text(text="¿Que querés hacer?", reply_markup=reply_markup)
+
+    return ELEGIR_ACTIVIDAD
     
 
 def error(bot, update, error):
@@ -63,13 +65,13 @@ def contact(bot, update):
         logger.info("Guardamos chat_id del usuario %s" % update.message.chat_id)
         usuarios.update_one(str(usuario['_id']),'chat_id',update.message.chat_id)
         usuarios.update_one(str(usuario['_id']),'nombre',user.first_name)
-    	update.message.reply_text("Entrenamos? Elegi una rutina, El profesor %s te sugiere:" % entrenador['nombre'], reply_markup=reply_markup)
+    	update.message.reply_text("Entrenamos? Elegi una rutina, El profesor %s te sugiere:" % utf8(entrenador['nombre']), reply_markup=reply_markup)
     	return ELEGIR
     else:
         update.message.reply_text("Necesitás ser invitado por tu entrenador, nos vemos!",reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
     
-def elegir(bot, update):
+def elegir_rutina(bot, update):
     usuario = usuarios.getCollection().find_one({'chat_id':update.callback_query.from_user.id})
     logger.info('Elegir ({}), Opción {}'.format(utf8(usuario['nombre']),update.callback_query.data))
     
@@ -78,13 +80,50 @@ def elegir(bot, update):
     
     keyboard = []
     for rutina in rutinas_usuario:
-        keyboard.append([InlineKeyboardButton(rutina['descripcion'],callback_data='4')])
+        keyboard.append([InlineKeyboardButton(rutina['descripcion'],callback_data=str({'rutina':rutina['nombre']}))])
     reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
-    bot.send_message(chat_id=update.callback_query.from_user.id,
-        text="Bien! Elegi una rutina, El profesor %s te sugiere:" % entrenador['nombre'], 
-        reply_markup=reply_markup)
-    return ELEGIR    
 
+    update.callback_query.answer("Bien! Entrenemos")
+    update.callback_query.edit_message_text(text="%s preparó ejercicios para vos, elegí:" % utf8(entrenador['nombre']), 
+        reply_markup=reply_markup)
+    return ELEGIR_ACTIVIDAD    
+
+def elegir_dia(bot, update):
+    usuario = usuarios.getCollection().find_one({'chat_id':update.callback_query.from_user.id})
+    callback_data = eval(update.callback_query.data)
+    logger.info('Elegir ({}), Rutina {}'.format(utf8(usuario['nombre']),callback_data['rutina']))
+    
+    rutina = rutinas.getCollection().find_one({'nombre':callback_data['rutina']})
+    
+    keyboard = []
+    for dia in rutina['dia']:
+        callback_data['dia'] = dia['nombre']
+        keyboard.append([InlineKeyboardButton(dia['nombre'],callback_data=str(callback_data))])
+    reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+
+    update.callback_query.answer("Excelente! %s" % callback_data['rutina'])
+    update.callback_query.edit_message_reply_markup(reply_markup=reply_markup)
+   
+    return ELEGIR_ACTIVIDAD  
+
+def elegir_ejercicio(bot, update):
+    usuario = usuarios.getCollection().find_one({'chat_id':update.callback_query.from_user.id})
+    callback_data = eval(update.callback_query.data)
+    logger.info('Elegir ({}), Rutina {}, Día {}'.format(utf8(usuario['nombre']),callback_data['rutina'],callback_data['dia']))
+    
+    rutina = rutinas.getCollection().find_one({'nombre':callback_data['rutina']})
+    dia = next(x for x in rutina['dia'] if x['nombre'] == callback_data['dia'])
+
+    keyboard = []
+    for ejercicio in dia['ejercicio']:
+        callback_data['ejercicio'] = 'un'#ejercicio['nombre']
+        keyboard.append([InlineKeyboardButton(ejercicio['nombre'],callback_data=str(callback_data))])
+    reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+
+    update.callback_query.answer("Vamos con %s!" % callback_data['dia'])
+    update.callback_query.edit_message_reply_markup(reply_markup=reply_markup)
+
+    return ELEGIR_ACTIVIDAD     
     
 def registrar(bot, update, args):
     update.message.reply_text("Gracias! %" % args)
