@@ -6,6 +6,7 @@ import json
 import datetime
 from random import randint
 from bson.objectid import ObjectId
+import gridfs
 
 
 class Repository(object):
@@ -21,9 +22,13 @@ class Repository(object):
         self.db_name = dbdb
         self.data_coll_name = dbcoll
         self.client.server_info()
+        self.fs = gridfs.GridFS(self.client[self.db_name])
         
     def getCollection(self):
         return self.client[self.db_name][self.data_coll_name]
+        
+    def getFs(self):
+        return self.fs
      
     def find(self,criteria=""):
         """
