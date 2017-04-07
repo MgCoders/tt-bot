@@ -5,8 +5,8 @@
 import logging
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, InlineQueryHandler, CallbackQueryHandler,ConversationHandler,RegexHandler
 from telegram import InlineQueryResultArticle, InputTextMessageContent
-from libs.bot_utils import start,contact,error,elegir_rutina,elegir_dia,elegir_ejercicio,registrar,opciones,acerca_de,terminar,ver
-from libs.bot_utils import IDENTIFICACION, OPCIONES, ELEGIR_ACTIVIDAD, REGISTRAR, VER
+from libs.bot_utils import start,contact,error,elegir_rutina,elegir_dia,elegir_ejercicio,registrar,opciones,acerca_de,terminar,ver, hacer_ejercicio
+from libs.bot_utils import IDENTIFICACION, OPCIONES, ELEGIR_ACTIVIDAD, HACER_ACTIVIDAD, REGISTRAR, VER
 
 keys = {}
 exec(open('libs/key_all.py').read(), keys)
@@ -25,6 +25,9 @@ conv_handler = ConversationHandler(
 				CallbackQueryHandler(elegir_dia,pattern='.*rutina.*'),
 				CallbackQueryHandler(elegir_rutina,pattern='.*entrenar.*'),
 				CallbackQueryHandler(ver,pattern='.*ver.*')
+				],
+            HACER_ACTIVIDAD: [
+				CallbackQueryHandler(hacer_ejercicio)
 				],
 				VER: [],
             REGISTRAR: [MessageHandler(Filters.text, registrar, pass_user_data=True)],

@@ -90,3 +90,9 @@ ENV/
 
 # Keys
 key_*
+
+# Ide
+.idea/
+
+gym-bot.iml
+
