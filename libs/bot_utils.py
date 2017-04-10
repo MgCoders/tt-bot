@@ -148,6 +148,7 @@ def hacer_ejercicio(bot, update, user_data):
     user_data['ejercicio'] = update.callback_query.data
     logger.info('Hacer ({}), Rutina {}, Día {}, Ejercicio {}'.format(utf8(user_data['usuario']['nombre']),user_data['rutina'],user_data['dia'],user_data['ejercicio']))
 
+    #logger.info(user_data)
     rutina = rutinas.getCollection().find_one({'nombre':user_data['rutina']})
     dia = next(x for x in rutina['dia'] if x['nombre'] == user_data['dia'])
     ejercicio = next(x for x in dia['ejercicio'] if x['nombre'] == user_data['ejercicio'])
@@ -163,6 +164,45 @@ def hacer_ejercicio(bot, update, user_data):
         text = "{} consiste en {} series.".format(utf8(user_data['ejercicio']),len(ejercicio['serie']))
 
 
+    keyboard = []
+
+    #Seguimos adelante
+    if (not peso_max_usuario) or (peso_max_usuario and peso_max_usuario > 0):
+        keyboard.append([InlineKeyboardButton('Comenzar',callback_data='comenzar')])
+        keyboard.append([InlineKeyboardButton('Cambiar',callback_data='cambiar')])
+        reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=False, one_time_keyboard=True)
+        update.callback_query.answer(user_data['ejercicio'])
+        update.callback_query.edit_message_text(text=text,reply_markup=reply_markup)
+        #Imágen
+        if ejercicio.get('imagen',None):
+                data = rutinas.getFs().get(ejercicio['imagen'])
+                if data:
+                    f = open(data.filename, 'wb')
+                    f.write(data.read())
+                    f.close()
+                    bot.sendPhoto(chat_id=update.callback_query.from_user.id, photo=open(utf8(data.filename), 'rb'))
+        return HACER_ACTIVIDAD
+    #Actualizar Peso
+    else:
+        keyboard.append(
+            [InlineKeyboardButton('Actualizar Peso Máximo',callback_data='actualizar_peso')]
+        )
+
+        reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=False, one_time_keyboard=True)
+        update.callback_query.answer(user_data['ejercicio'])
+        update.callback_query.edit_message_text(text=text,reply_markup=reply_markup)
+        return RECIBIR
+
+def comenzar_ejercicio(bot, update, user_data):
+    bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
+
+    usuario = user_data['usuario']
+    logger.info('Comenzar ({}), Rutina {}, Día {}, Ejercicio {}'.format(utf8(user_data['usuario']['nombre']),user_data['rutina'],user_data['dia'],user_data['ejercicio']))
+
+    rutina = rutinas.getCollection().find_one({'nombre':user_data['rutina']})
+    dia = next(x for x in rutina['dia'] if x['nombre'] == user_data['dia'])
+    ejercicio = next(x for x in dia['ejercicio'] if x['nombre'] == user_data['ejercicio'])
+
     #Imágen
     if ejercicio.get('imagen',None):
             data = rutinas.getFs().get(ejercicio['imagen'])
@@ -171,40 +211,51 @@ def hacer_ejercicio(bot, update, user_data):
                 f.write(data.read())
                 f.close()
                 bot.sendPhoto(chat_id=update.callback_query.from_user.id, photo=open(utf8(data.filename), 'rb'))
+    update.callback_query.edit_message_text('TA!')
+    return ConversationHandler.END
 
-    keyboard = [
-	   [InlineKeyboardButton('Actualizar Peso Máximo',callback_data='actualizar_peso')]
-	]
-
-    if (not peso_max_usuario) or (peso_max_usuario and peso_max_usuario > 0):
-        keyboard.append(
-        [InlineKeyboardButton('Comenzar',callback_data='comenzar')],
-        [InlineKeyboardButton('Cambiar',callback_data='cambiar')]
-        )
-
-    reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=False, one_time_keyboard=True)
-
-    update.callback_query.answer(user_data['ejercicio'])
-    update.callback_query.edit_message_text(text=text,reply_markup=reply_markup)
-
-    '''
-    Esta clase va a tener que tener un case, para el caso de la segunda llamada de actualizar_peso,
-    etc.
-    '''
-    return HACER_ACTIVIDAD
 
 def actualizar_peso(bot, update, user_data):
     bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
 
     usuario = user_data['usuario']
-    logger.info('Actualizar peso {}'.format(utf8(user_data['usuario']['nombre']),user_data['ejercicio']))
+    logger.info('Actualizar peso ({}) {}'.format(utf8(user_data['usuario']['nombre']),user_data['ejercicio']))
 
-
-    reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=False, one_time_keyboard=True)
-
-    update.message.reply_text("Por favor enviame el peso máximo que podés levantar en {}".format(user_data['ejercicio']), reply_markup=ReplyKeyboardRemove())
+    update.callback_query.edit_message_text("Por favor enviame el peso máximo que podés levantar en {}".format(user_data['ejercicio']))
 
     return RECIBIR
+
+def guardar_nuevo_peso(bot, update, user_data):
+    #bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
+
+    try:
+        nuevo_peso = float(update.message.text)
+    except ValueError:
+        logger.error("No se puede convertir a float")
+        update.message.reply_text("Peso inválido, intenta de nuevo")
+        return RECIBIR
+
+    usuario = user_data['usuario']
+    logger.info('Guardar nuevo peso ({}) {} {}'.format(utf8(user_data['usuario']['nombre']),user_data['ejercicio'],nuevo_peso))
+
+    usuarios.getCollection().update({'_id':usuario['_id']},
+        {'$push':
+            {'pesos_maximos':
+                {
+                    user_data['ejercicio']:nuevo_peso
+                }
+            }
+        }
+        )
+    user_data['usuario'] = usuarios.getCollection().find_one({'_id':usuario['_id']})
+    keyboard = []
+    keyboard.append([InlineKeyboardButton('Comenzar',callback_data='comenzar')])
+    keyboard.append([InlineKeyboardButton('Cambiar',callback_data='cambiar')])
+    reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=False, one_time_keyboard=True)
+    update.message.reply_text('Bien, tu nuevo peso máximo para {} es {}'.format(user_data['ejercicio'],nuevo_peso),reply_markup=reply_markup)
+    return HACER_ACTIVIDAD
+
+
 
 def acerca_de(bot, update):
     bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)

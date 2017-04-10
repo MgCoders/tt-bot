@@ -5,7 +5,7 @@
 import logging
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, InlineQueryHandler, CallbackQueryHandler,ConversationHandler,RegexHandler
 from telegram import InlineQueryResultArticle, InputTextMessageContent
-from libs.bot_utils import start,contact,error,elegir_rutina,elegir_dia,elegir_ejercicio,registrar,opciones,acerca_de,terminar,ver, hacer_ejercicio, actualizar_peso
+from libs.bot_utils import start,contact,error,elegir_rutina,elegir_dia,elegir_ejercicio,registrar,opciones,acerca_de,terminar,ver, hacer_ejercicio, actualizar_peso, guardar_nuevo_peso, comenzar_ejercicio
 from libs.bot_utils import IDENTIFICACION, OPCIONES, ELEGIR_ACTIVIDAD, HACER_ACTIVIDAD, RECIBIR, VER
 
 keys = {}
@@ -28,10 +28,12 @@ conv_handler = ConversationHandler(
 				CallbackQueryHandler(ver,pattern='.*ver.*',pass_user_data=True)
 				],
         HACER_ACTIVIDAD: [
+				CallbackQueryHandler(comenzar_ejercicio,pattern='.*comenzar.*',pass_user_data=True),
 				CallbackQueryHandler(hacer_ejercicio,pass_user_data=True)
+				,
 				],
 		VER: [],
-        RECIBIR: [MessageHandler(Filters.text, actualizar_peso, pass_user_data=True)],
+        RECIBIR: [CallbackQueryHandler(actualizar_peso, pass_user_data=True),MessageHandler(Filters.text, guardar_nuevo_peso, pass_user_data=True)],
         },
     fallbacks=[CallbackQueryHandler(terminar,pattern='.*terminar.*')]
     )
