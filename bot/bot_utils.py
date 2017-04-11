@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 IDENTIFICACION, VER, ELEGIR_ISSUE, HACER_ACTIVIDAD, RECIBIR, CONFIRMAR,ELEGIR_HOST,ELEGIR_PROYECTO = range(8)
 # Database
 usuarios = Repository('users','ttbot')
+usuarios.getCollection().remove({})
 connections = {}
 
 def utf8(unicode_text):
@@ -49,32 +50,43 @@ def identificar(bot, update, user_data):
     info = update.message.text
     bot.sendChatAction(chat_id=update.message.chat_id, action=ChatAction.TYPING)
     logger.info("Info received {}".format(info))
-    if not user_data.get('host',None):
-        user_data['host'] = info
+    if not user_data.get('host',None) or not user_data['host'].get('host',None):
+        user_data['host'] = {}
+        user_data['host']['host'] = info
         keyboard = [[InlineKeyboardButton(text="Correcto", callback_data='host_ok'),InlineKeyboardButton(text="Corregir", callback_data='host_ko')]]
         reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=False, one_time_keyboard=True)
-        update.message.reply_text("Es correcto el host? {}:".format(user_data['host']), reply_markup=reply_markup)
+        update.message.reply_text("Es correcto el host? {}:".format(user_data['host']['host']), reply_markup=reply_markup)
         return CONFIRMAR
-    elif not user_data.get('username',None):
-        user_data['username'] = info
+    elif not user_data['host'].get('username',None):
+        user_data['host']['username'] = info
         keyboard = [[InlineKeyboardButton(text="Correcto", callback_data='username_ok'),InlineKeyboardButton(text="Corregir", callback_data='username_ko')]]
         reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=False, one_time_keyboard=True)
-        update.message.reply_text("Es correcto el usuario? {}:".format(user_data['username']), reply_markup=reply_markup)
+        update.message.reply_text("Es correcto el usuario? {}:".format(user_data['host']['username']), reply_markup=reply_markup)
         return CONFIRMAR
     else:
         #Try to login
-        user_data['pass'] = info
+        user_data['host']['pass'] = info
         try:
-            connection = youtrack.Connection(user_data['host'],user_data['username'],user_data['pass'])
+            connection = Connection(user_data['host']['host'],user_data['host']['username'],user_data['host']['pass'])
             logger.info("good login")
             usuario = usuarios.getCollection().find_one({'chat_id':update.message.chat_id})
             if not usuario:
-                usuarios.getCollection().insert_one({'chat_id':update.message.chat_id,'hosts':[user_data]})
+                usuarios.getCollection().insert_one({'chat_id':update.message.chat_id,'hosts':[user_data['host']]})
             else:
-                usuarios.getCollection().update_one({'chat_id':update.message.chat_id},{'$push':{'hosts':user_data}})
+                usuarios.getCollection().update_one({'chat_id':update.message.chat_id},{'$push':{'hosts':user_data['host']}})
+            logger.info(user_data['host'])
+            proyectos = connection.getProjects()
+            keyboard = []
+            for proyecto in proyectos.keys():
+                keyboard.append([InlineKeyboardButton(proyectos[proyecto],callback_data=proyecto)])
+            reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+            update.message.reply_text("Bien! Elegí un proyecto"  ,reply_markup=reply_markup)
+            return ELEGIR_PROYECTO
 
-        except:
-            logger.info("bad")
+        except Exception as e:
+            logger.error(e)
+            update.message.reply_text("Clave incorrecta")
+            return IDENTIFICACION
 
         return CONFIRMAR
 
@@ -85,7 +97,7 @@ def confirmar_host_ok(bot, update, user_data):
 
 def confirmar_host_ko(bot, update, user_data):
     bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
-    del user_data['host']
+    del user_data['host']['host']
     update.callback_query.edit_message_text(text="Ingresá nuevamente el host")
     return IDENTIFICACION
 
@@ -96,7 +108,7 @@ def confirmar_username_ok(bot, update, user_data):
 
 def confirmar_username_ko(bot, update, user_data):
     bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
-    del user_data['username']
+    del user_data['host']['username']
     update.callback_query.edit_message_text(text="Ingresá nuevamente el usuario")
     return IDENTIFICACION
 
@@ -183,6 +195,8 @@ def recibir_horas(bot, update, user_data):
     work_item = {}
     work_item['duration'] = duracion
     work_item['date'] = str(datetime.now())
+    work_item['worktype'] = user_data['tipo_nom']
+    work_item['description'] = 'bot :)'
     work_item = dotdict(work_item)
     logger.info(work_item)
 
@@ -190,10 +204,12 @@ def recibir_horas(bot, update, user_data):
         connection = Connection(user_data['host']['host'],user_data['host']['username'],user_data['host']['pass'])
         connection.createWorkItem(user_data['issue'],work_item)
         logger.info('Guardar tiempo {} {}'.format(user_data['issue'],duracion))
+        update.message.reply_text("Gracias amego!")
     except Exception as e :
         logger.error(e)
+        update.message.reply_text("No eh!")
 
-    return RECIBIR
+    return ConversationHandler.END
 
 def terminar(bot, update):
     bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
