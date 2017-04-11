@@ -7,6 +7,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Inlin
 from telegram import InlineQueryResultArticle, InputTextMessageContent, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, ChatAction
 from Repository import Repository
 from youtrack.connection import Connection
+from datetime import datetime
 
 
 #Sesiones Activas, sustituir por Memcached
@@ -126,7 +127,6 @@ def elegir_proyecto(bot, update, user_data):
 
     user_data['proyecto'] = update.callback_query.data
     logger.info('Elegir Proyecto Opción {}'.format(user_data['proyecto']))
-    logger.info(user_data)
 
     connection = Connection(user_data['host']['host'],user_data['host']['username'],user_data['host']['pass'])
     issues = connection.getIssues(user_data['proyecto'],'',0,10)
@@ -144,177 +144,56 @@ def elegir_issue(bot, update, user_data):
 
     user_data['issue'] = update.callback_query.data
     logger.info('Elegir Issue {} Opción {}'.format(user_data['proyecto'],user_data['issue']))
-    logger.info(user_data)
 
     connection = Connection(user_data['host']['host'],user_data['host']['username'],user_data['host']['pass'])
-    settings = connection.getProjectTimeTrackingWorkTypes(user_data['proyecto'])
+    the_types = connection.getProjectTimeTrackingWorkTypes(user_data['proyecto'])
 
-    logger.info(settings)
+    user_data['types'] = the_types['types']
+    keyboard = []
+    for one_type in the_types['types']:
+        keyboard.append([InlineKeyboardButton(one_type['name'],callback_data=one_type['id'])])
 
-    keyboard = [
-        [InlineKeyboardButton('Desarrollo',callback_data='Desarrollo')],
-        [InlineKeyboardButton('Pruebas',callback_data='Pruebas')],
-        [InlineKeyboardButton('Decumentacion',callback_data='Pruebas')]
-    ]
     reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
 
-    update.callback_query.edit_message_text(text="Elegí la tarea",reply_markup=reply_markup)
-    return ELEGIR_ISSUE
-
-def elegir_ejercicio(bot, update, user_data):
-    bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
-
-    usuario = user_data['usuario']
-    user_data['dia'] = update.callback_query.data
-    logger.info('Elegir ({}), Rutina {}, Día {}'.format(utf8(user_data['usuario']['nombre']),user_data['rutina'],user_data['dia']))
-
-    rutina = rutinas.getCollection().find_one({'nombre':user_data['rutina']})
-    dia = next(x for x in rutina['dia'] if x['nombre'] == user_data['dia'])
-
-    keyboard = []
-    for ejercicio in dia['ejercicio']:
-        keyboard.append([InlineKeyboardButton(ejercicio['nombre'],callback_data=ejercicio['nombre'])])
-    reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
-
-
-    update.callback_query.answer("Vamos con {}!".format(user_data['dia']))
-    update.callback_query.edit_message_reply_markup(reply_markup=reply_markup)
-
-    return HACER_ACTIVIDAD
-
-def hacer_ejercicio(bot, update, user_data):
-    bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
-
-    usuario = user_data['usuario']
-    user_data['ejercicio'] = update.callback_query.data
-    logger.info('Hacer ({}), Rutina {}, Día {}, Ejercicio {}'.format(utf8(user_data['usuario']['nombre']),user_data['rutina'],user_data['dia'],user_data['ejercicio']))
-
-    #logger.info(user_data)
-    rutina = rutinas.getCollection().find_one({'nombre':user_data['rutina']})
-    dia = next(x for x in rutina['dia'] if x['nombre'] == user_data['dia'])
-    ejercicio = next(x for x in dia['ejercicio'] if x['nombre'] == user_data['ejercicio'])
-
-    #Texto
-    if (ejercicio['peso_max']):
-    	text = "{} consiste en {} series con cargas relativas a tu peso máximo.".format(utf8(user_data['ejercicio']),len(ejercicio['serie']))
-        peso_max_usuario = next((x for x in usuario['pesos_maximos'] if x.get(user_data['ejercicio'],None)),None)
-        if not peso_max_usuario:
-            peso_max_usuario = -1
-            text += " Por favor actualizá tu peso máximo."
-    else:
-        text = "{} consiste en {} series.".format(utf8(user_data['ejercicio']),len(ejercicio['serie']))
-
-
-    keyboard = []
-
-    #Seguimos adelante
-    if (not peso_max_usuario) or (peso_max_usuario and peso_max_usuario > 0):
-        keyboard.append([InlineKeyboardButton('Comenzar',callback_data='comenzar')])
-        keyboard.append([InlineKeyboardButton('Cambiar',callback_data='cambiar')])
-        reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=False, one_time_keyboard=True)
-        update.callback_query.answer(user_data['ejercicio'])
-        update.callback_query.edit_message_text(text=text,reply_markup=reply_markup)
-        #Imágen
-        if ejercicio.get('imagen',None):
-                data = rutinas.getFs().get(ejercicio['imagen'])
-                if data:
-                    f = open(data.filename, 'wb')
-                    f.write(data.read())
-                    f.close()
-                    bot.sendPhoto(chat_id=update.callback_query.from_user.id, photo=open(utf8(data.filename), 'rb'))
-        return HACER_ACTIVIDAD
-    #Actualizar Peso
-    else:
-        keyboard.append(
-            [InlineKeyboardButton('Actualizar Peso Máximo',callback_data='actualizar_peso')]
-        )
-
-        reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=False, one_time_keyboard=True)
-        update.callback_query.answer(user_data['ejercicio'])
-        update.callback_query.edit_message_text(text=text,reply_markup=reply_markup)
-        return RECIBIR
-
-def comenzar_ejercicio(bot, update, user_data):
-    bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
-
-    usuario = user_data['usuario']
-    logger.info('Comenzar ({}), Rutina {}, Día {}, Ejercicio {}'.format(utf8(user_data['usuario']['nombre']),user_data['rutina'],user_data['dia'],user_data['ejercicio']))
-
-    rutina = rutinas.getCollection().find_one({'nombre':user_data['rutina']})
-    dia = next(x for x in rutina['dia'] if x['nombre'] == user_data['dia'])
-    ejercicio = next(x for x in dia['ejercicio'] if x['nombre'] == user_data['ejercicio'])
-
-    #Imágen
-    if ejercicio.get('imagen',None):
-            data = rutinas.getFs().get(ejercicio['imagen'])
-            if data:
-                f = open(data.filename, 'wb')
-                f.write(data.read())
-                f.close()
-                bot.sendPhoto(chat_id=update.callback_query.from_user.id, photo=open(utf8(data.filename), 'rb'))
-    update.callback_query.edit_message_text('TA!')
-    return ConversationHandler.END
-
-
-def recibir_horas(bot, update, user_data):
-    bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
-
-    usuario = user_data['usuario']
-    logger.info('Actualizar peso ({}) {}'.format(utf8(user_data['usuario']['nombre']),user_data['ejercicio']))
-
-    update.callback_query.edit_message_text("Por favor enviame el peso máximo que podés levantar en {}".format(user_data['ejercicio']))
-
+    update.callback_query.edit_message_text(text="Elegí el tipo",reply_markup=reply_markup)
     return RECIBIR
 
-def guardar_nuevo_peso(bot, update, user_data):
-    #bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
+
+def pedir_horas(bot, update, user_data):
+    bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
+
+    user_data['tipo_id'] = update.callback_query.data
+    user_data['tipo_nom'] = next(x['name'] for x in user_data['types'] if x['id'] == user_data['tipo_id'])
+
+    logger.info('Recibir horas {} {} Tipo {}'.format(user_data['proyecto'],user_data['issue'],user_data['tipo_id']))
+
+    update.callback_query.edit_message_text("Envía la cantidad de minutos de {} que hiciste en {}".format(user_data['tipo_nom'],user_data['issue']))
+    return RECIBIR
+
+def recibir_horas(bot, update, user_data):
 
     try:
-        nuevo_peso = float(update.message.text)
+        duracion = int(update.message.text)
+        logger.info(duracion)
     except ValueError:
-        logger.error("No se puede convertir a float")
-        update.message.reply_text("Peso inválido, intenta de nuevo")
+        logger.error("No entiendo el número!")
+        update.message.reply_text("No entiendo el número!")
         return RECIBIR
 
-    usuario = user_data['usuario']
-    logger.info('Guardar nuevo peso ({}) {} {}'.format(utf8(user_data['usuario']['nombre']),user_data['ejercicio'],nuevo_peso))
+    work_item = {}
+    work_item['duration'] = duracion
+    work_item['date'] = str(datetime.now())
+    work_item = dotdict(work_item)
+    logger.info(work_item)
 
-    usuarios.getCollection().update({'_id':usuario['_id']},
-        {'$push':
-            {'pesos_maximos':
-                {
-                    user_data['ejercicio']:nuevo_peso
-                }
-            }
-        }
-        )
-    user_data['usuario'] = usuarios.getCollection().find_one({'_id':usuario['_id']})
-    keyboard = []
-    keyboard.append([InlineKeyboardButton('Comenzar',callback_data='comenzar')])
-    keyboard.append([InlineKeyboardButton('Cambiar',callback_data='cambiar')])
-    reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=False, one_time_keyboard=True)
-    update.message.reply_text('Bien, tu nuevo peso máximo para {} es {}'.format(user_data['ejercicio'],nuevo_peso),reply_markup=reply_markup)
-    return HACER_ACTIVIDAD
+    try:
+        connection = Connection(user_data['host']['host'],user_data['host']['username'],user_data['host']['pass'])
+        connection.createWorkItem(user_data['issue'],work_item)
+        logger.info('Guardar tiempo {} {}'.format(user_data['issue'],duracion))
+    except Exception as e :
+        logger.error(e)
 
-
-
-def acerca_de(bot, update):
-    bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
-    usuario = usuarios.getCollection().find_one({'chat_id':update.callback_query.from_user.id})
-    logger.info('Elegir ({}) {}'.format(utf8(usuario['nombre']),update.callback_query.data))
-
-    entrenador = usuarios.getCollection().find_one({'numero':usuario['entrenador']})
-
-    keyboard = [
-        [InlineKeyboardButton(text="Entrenar", callback_data='opcion_entrenar'),InlineKeyboardButton(text="Ver", callback_data='opcion_ver')],
-        [InlineKeyboardButton(text="Terminar", callback_data='opcion_terminar')]
-        ]
-    reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=False, one_time_keyboard=True)
-
-    update.callback_query.answer("Va info...")
-    update.callback_query.edit_message_text(text="GymBot es un software para ayudarte a seguir el entrenamiento marcado por tu entrenador, {} cargará rutinas que podrás seguir usando este chat. Es posible también registrar tus sesiones de entrenamiento para discutirlas luego. Por más información sobre los genios que programaron este bot entrá a mgcoders.uy".format(utf8(entrenador['nombre'])), reply_markup=reply_markup)
-
-    return ELEGIR_ACTIVIDAD
+    return RECIBIR
 
 def terminar(bot, update):
     bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
@@ -338,3 +217,9 @@ def ver(bot, update):
 
 def registrar(bot, update, args):
     update.message.reply_text("Gracias! %" % args)
+
+class dotdict(dict):
+     """dot.notation access to dictionary attributes"""
+     __getattr__ = dict.get
+     __setattr__ = dict.__setitem__
+     __delattr__ = dict.__delitem__

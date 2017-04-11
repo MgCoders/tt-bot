@@ -5,7 +5,7 @@
 import logging
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, InlineQueryHandler, CallbackQueryHandler,ConversationHandler,RegexHandler
 from telegram import InlineQueryResultArticle, InputTextMessageContent
-from bot_utils import start,identificar,error,elegir_proyecto,elegir_issue,elegir_ejercicio,recibir_horas,terminar,confirmar_host_ok,confirmar_host_ko,confirmar_username_ok,confirmar_username_ko,elegir_host
+from bot_utils import start,identificar,error,elegir_proyecto,elegir_issue,recibir_horas,terminar,confirmar_host_ok,confirmar_host_ko,confirmar_username_ok,confirmar_username_ko,elegir_host,pedir_horas
 from bot_utils import IDENTIFICACION, ELEGIR_ISSUE, HACER_ACTIVIDAD, RECIBIR, VER,CONFIRMAR,ELEGIR_HOST,ELEGIR_PROYECTO
 
 keys = {}
@@ -29,7 +29,7 @@ conv_handler = ConversationHandler(
 	    ELEGIR_ISSUE: [CallbackQueryHandler(elegir_issue,pass_user_data=True)],
         HACER_ACTIVIDAD: [],
 
-        RECIBIR: [CallbackQueryHandler(recibir_horas, pass_user_data=True)],
+        RECIBIR: [CallbackQueryHandler(pedir_horas, pass_user_data=True),MessageHandler(Filters.text, recibir_horas, pass_user_data=True)],
         },
     fallbacks=[CallbackQueryHandler(terminar,pattern='.*terminar.*')]
     )

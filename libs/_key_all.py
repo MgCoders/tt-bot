@@ -1,2 +1,0 @@
-mongostring = ""
-telegram = ""

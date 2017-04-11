@@ -729,10 +729,7 @@ class ProjectTimeTrackingWorkTypes(YouTrackObject):
 
         for e in xml.childNodes:
             one_type = {}
-            if e.tagName.lower() == 'name':
-                one_type['name'] = e.getAttribute('name')
-            elif e.tagName.lower() == 'id':
-                one_type['id'] = e.getAttribute('id')
-            elif e.tagName.lower() == 'id':
-                one_type['url'] = e.getAttribute('url')
+            one_type['name'] = e.getElementsByTagName("name")[0].childNodes[0].nodeValue.encode('utf-8')
+            one_type['id'] = e.getElementsByTagName("id")[0].childNodes[0].nodeValue
+            one_type['url'] = e.getElementsByTagName("url")[0].childNodes[0].nodeValue
             self['types'].append(one_type)
