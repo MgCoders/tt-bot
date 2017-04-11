@@ -1,5 +1,5 @@
 notebooks:
-  build: ./python2
+  build: ./python3
   ports:
     - "0.0.0.0:8888:8888"
     - "0.0.0.0:6006:6006"
@@ -9,12 +9,11 @@ notebooks:
     - ./libs:/home/ds/notebooks/libs
   links:
     - mongo
-    
+
 bot:
- build: ./python2
+ build: ./python3
  volumes:
    - ./bot:/home/ds/notebooks
-   - ./libs:/home/ds/notebooks/libs
  command: /opt/ds/bin/python -u /home/ds/notebooks/bot.py
  links:
     - mongo

@@ -5,7 +5,9 @@
 import logging
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, InlineQueryHandler,ConversationHandler
 from telegram import InlineQueryResultArticle, InputTextMessageContent, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, ChatAction
-from libs.Repository import Repository
+from Repository import Repository
+from youtrack.connection import Connection
+
 
 #Sesiones Activas, sustituir por Memcached
 sesiones = {}
@@ -14,10 +16,10 @@ sesiones = {}
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',level=logging.INFO)
 logger = logging.getLogger(__name__)
 # Estados
-IDENTIFICACION, OPCIONES, VER, ELEGIR_ACTIVIDAD, HACER_ACTIVIDAD, RECIBIR = range(6)
+IDENTIFICACION, VER, ELEGIR_ISSUE, HACER_ACTIVIDAD, RECIBIR, CONFIRMAR,ELEGIR_HOST,ELEGIR_PROYECTO = range(8)
 # Database
-usuarios = Repository('usuarios','gymbot')
-rutinas = Repository('rutinas','gymbot')
+usuarios = Repository('users','ttbot')
+connections = {}
 
 def utf8(unicode_text):
     return unicode_text.encode('utf-8')
@@ -28,97 +30,134 @@ def start(bot, update):
     # Conocemos al usuario?
     usuario = usuarios.getCollection().find_one({'chat_id':update.message.chat_id})
     if usuario:
-        keyboard = [[InlineKeyboardButton(text="Claro!", callback_data='seguir'),InlineKeyboardButton(text="Eh? ¿Esto que es?", callback_data='acerca_de')]]
+        keyboard = []
+        for host in usuario['hosts']:
+            keyboard.append([InlineKeyboardButton(text=host['host'], callback_data=host['host'])])
         reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=False, one_time_keyboard=True)
-    	logger.info("Usuario conocido %s" % usuario['nombre'])
-    	update.message.reply_text("¿Estás list@ %s?" % utf8(usuario['nombre']), reply_markup=reply_markup)
-    	return OPCIONES
-    keyboard = [[KeyboardButton(text="Enviar número", request_contact=True)]]
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
-    update.message.reply_text("Hola, parece que no estás registrado, ¿estás de acuerdo en enviarnos tu número para continuar?", reply_markup=reply_markup)
+    	logger.info("{} hosts registrados para el usuario".format(len(keyboard)))
+    	update.message.reply_text("Elegí un host para conectarte", reply_markup=reply_markup)
+    	return ELEGIR_HOST
+    update.message.reply_text("Hola, parece que no estás registrado, por favor mandá el host de youtrack")
     return IDENTIFICACION
-
-def opciones(bot,update,user_data):
-    bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
-
-    user_data.clear()
-    usuario = usuarios.getCollection().find_one({'chat_id':update.callback_query.from_user.id})
-    user_data['usuario'] = usuario
-    logger.info('Opciones ({}), Opción {}'.format(utf8(usuario['nombre']),update.callback_query.data))
-
-    keyboard = [
-        [InlineKeyboardButton(text="Entrenar", callback_data='opcion_entrenar'),InlineKeyboardButton(text="Ver sesiones anteriores", callback_data='opcion_ver')],
-        [InlineKeyboardButton(text="Terminar", callback_data='opcion_terminar')]
-        ]
-    reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=False, one_time_keyboard=True)
-
-    update.callback_query.answer("Siempre listo!")
-    update.callback_query.edit_message_text(text="¿Que querés hacer?", reply_markup=reply_markup)
-
-    return ELEGIR_ACTIVIDAD
-
 
 def error(bot, update, error):
     logger.warn('Update "%s" caused error "%s"' % (update, error))
 
-def contact(bot, update):
-    user = update.message.from_user
+def identificar(bot, update, user_data):
+    info = update.message.text
     bot.sendChatAction(chat_id=update.message.chat_id, action=ChatAction.TYPING)
-    logger.info("Contact received from %s" % user.first_name)
-    logger.info("Phone number %s" % update.message.contact.phone_number)
-    # Conocemos al usuario?
-    usuario = usuarios.getCollection().find_one({'numero':update.message.contact.phone_number})
-    if usuario:
-        entrenador = usuarios.getCollection().find_one({'numero':usuario['entrenador']})
-        logger.info("Guardamos chat_id del usuario {}".format(update.message.chat_id))
-        usuarios.update_one(str(usuario['_id']),'chat_id',update.message.chat_id)
-        usuarios.update_one(str(usuario['_id']),'nombre',user.first_name)
-        keyboard = [[InlineKeyboardButton(text="Seguir", callback_data='seguir'),InlineKeyboardButton(text="Eh? ¿Esto que es?", callback_data='acerca_de')]]
+    logger.info("Info received {}".format(info))
+    if not user_data.get('host',None):
+        user_data['host'] = info
+        keyboard = [[InlineKeyboardButton(text="Correcto", callback_data='host_ok'),InlineKeyboardButton(text="Corregir", callback_data='host_ko')]]
         reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=False, one_time_keyboard=True)
-    	logger.info("Usuario conocido %s" % usuario['nombre'])
-    	update.message.reply_text("Bienvenido! Soy GymBot el asistente de {}:".format(utf8(entrenador['nombre'])), reply_markup=reply_markup)
-    	return OPCIONES
+        update.message.reply_text("Es correcto el host? {}:".format(user_data['host']), reply_markup=reply_markup)
+        return CONFIRMAR
+    elif not user_data.get('username',None):
+        user_data['username'] = info
+        keyboard = [[InlineKeyboardButton(text="Correcto", callback_data='username_ok'),InlineKeyboardButton(text="Corregir", callback_data='username_ko')]]
+        reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=False, one_time_keyboard=True)
+        update.message.reply_text("Es correcto el usuario? {}:".format(user_data['username']), reply_markup=reply_markup)
+        return CONFIRMAR
     else:
-        update.message.reply_text("Necesitás ser invitado por tu entrenador, nos vemos!",reply_markup=ReplyKeyboardRemove())
-    return ConversationHandler.END
+        #Try to login
+        user_data['pass'] = info
+        try:
+            connection = youtrack.Connection(user_data['host'],user_data['username'],user_data['pass'])
+            logger.info("good login")
+            usuario = usuarios.getCollection().find_one({'chat_id':update.message.chat_id})
+            if not usuario:
+                usuarios.getCollection().insert_one({'chat_id':update.message.chat_id,'hosts':[user_data]})
+            else:
+                usuarios.getCollection().update_one({'chat_id':update.message.chat_id},{'$push':{'hosts':user_data}})
 
-def elegir_rutina(bot, update, user_data):
+        except:
+            logger.info("bad")
+
+        return CONFIRMAR
+
+def confirmar_host_ok(bot, update, user_data):
+    bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
+    update.callback_query.edit_message_text(text="Ingresá el nombre de usuario o mail para el login")
+    return IDENTIFICACION
+
+def confirmar_host_ko(bot, update, user_data):
+    bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
+    del user_data['host']
+    update.callback_query.edit_message_text(text="Ingresá nuevamente el host")
+    return IDENTIFICACION
+
+def confirmar_username_ok(bot, update, user_data):
+    bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
+    update.callback_query.edit_message_text(text="Ingresá tu clave para el login")
+    return IDENTIFICACION
+
+def confirmar_username_ko(bot, update, user_data):
+    bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
+    del user_data['username']
+    update.callback_query.edit_message_text(text="Ingresá nuevamente el usuario")
+    return IDENTIFICACION
+
+def elegir_host(bot, update, user_data):
     bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
 
-    usuario = user_data['usuario']
-    logger.info('Elegir ({}), Opción {}'.format(utf8(usuario['nombre']),update.callback_query.data))
+    usuario = usuarios.getCollection().find_one({'chat_id':update.callback_query.from_user.id})
+    logger.info('Elegir host Opción {}'.format(update.callback_query.data))
 
-    entrenador = usuarios.getCollection().find_one({'numero':usuario['entrenador']})
-    rutinas_usuario = rutinas.find({'entrenador':entrenador['numero']})
+    host = next(x for x in usuario['hosts'] if x['host'] == update.callback_query.data)
+    user_data['host'] = host
+
+    connection = Connection(user_data['host']['host'],user_data['host']['username'],user_data['host']['pass'])
+
+    proyectos = connection.getProjects()
 
     keyboard = []
-    for rutina in rutinas_usuario:
-        keyboard.append([InlineKeyboardButton(rutina['descripcion'],callback_data=rutina['nombre'])])
+    for proyecto in proyectos.keys():
+        keyboard.append([InlineKeyboardButton(proyectos[proyecto],callback_data=proyecto)])
     reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
 
-    update.callback_query.answer("Bien! Entrenemos")
-    update.callback_query.edit_message_text(text="%s preparó ejercicios para vos, elegí:" % utf8(entrenador['nombre']),
-        reply_markup=reply_markup)
-    return ELEGIR_ACTIVIDAD
+    update.callback_query.edit_message_text(text="Bien! Elegí un proyecto"  ,reply_markup=reply_markup)
+    return ELEGIR_PROYECTO
 
-def elegir_dia(bot, update, user_data):
+def elegir_proyecto(bot, update, user_data):
     bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
 
-    usuario = user_data['usuario']
-    user_data['rutina'] = update.callback_query.data
+    user_data['proyecto'] = update.callback_query.data
+    logger.info('Elegir Proyecto Opción {}'.format(user_data['proyecto']))
+    logger.info(user_data)
 
-    logger.info('Elegir ({}), Rutina {}'.format(utf8(user_data['usuario']['nombre']),user_data['rutina']))
-    rutina = rutinas.getCollection().find_one({'nombre':user_data['rutina']})
+    connection = Connection(user_data['host']['host'],user_data['host']['username'],user_data['host']['pass'])
+    issues = connection.getIssues(user_data['proyecto'],'',0,10)
 
     keyboard = []
-    for dia in rutina['dia']:
-        keyboard.append([InlineKeyboardButton(dia['nombre'],callback_data=dia['nombre'])])
-    reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=False, one_time_keyboard=True)
+    for issue in issues:
+        keyboard.append([InlineKeyboardButton(issue['summary'],callback_data=issue['id'])])
+    reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
 
-    update.callback_query.answer("Excelente! %s" % user_data['rutina'])
-    update.callback_query.edit_message_reply_markup(reply_markup=reply_markup)
+    update.callback_query.edit_message_text(text="Elegí la tarea",reply_markup=reply_markup)
+    return ELEGIR_ISSUE
 
-    return ELEGIR_ACTIVIDAD
+def elegir_issue(bot, update, user_data):
+    bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
+
+    user_data['issue'] = update.callback_query.data
+    logger.info('Elegir Issue {} Opción {}'.format(user_data['proyecto'],user_data['issue']))
+    logger.info(user_data)
+
+    connection = Connection(user_data['host']['host'],user_data['host']['username'],user_data['host']['pass'])
+    settings = connection.getProjectTimeTrackingWorkTypes()
+
+    logger.info(settings)
+
+    keyboard = [
+        [InlineKeyboardButton('Desarrollo',callback_data='Desarrollo')],
+        [InlineKeyboardButton('Pruebas',callback_data='Pruebas')],
+        [InlineKeyboardButton('Decumentacion',callback_data='Pruebas')]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+
+    update.callback_query.edit_message_text(text="Elegí la tarea",reply_markup=reply_markup)
+    return ELEGIR_ISSUE
 
 def elegir_ejercicio(bot, update, user_data):
     bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
@@ -215,7 +254,7 @@ def comenzar_ejercicio(bot, update, user_data):
     return ConversationHandler.END
 
 
-def actualizar_peso(bot, update, user_data):
+def recibir_horas(bot, update, user_data):
     bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
 
     usuario = user_data['usuario']
