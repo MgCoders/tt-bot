@@ -65,6 +65,11 @@ def checkAndFixUrl(raw_data):
         finalUrl = url.scheme+'://'+url.netloc
     return finalUrl
 
+def escapeMarkdown(text):
+    text = text.replace('_','\_')
+    text = text.replace('*','\*')
+    return text
+
 def identificar(bot, update, user_data):
     info = update.message.text
     bot.sendChatAction(chat_id=update.message.chat_id, action=ChatAction.TYPING)
@@ -171,10 +176,12 @@ def elegir_proyecto(bot, update, user_data):
     keyboard = []
     texto = '*Tareas:* \n '
     for issue in issues:
-        texto += '\n *[{}]* _{}, {}_\n *Prioridad:* _{}_\n *Resumen:* {} \n\n *Elegí la tarea:*'.format(issue['id'],issue['Type'],issue['State'],issue['Priority'],utf8(issue['summary']))
+        texto += '\n *[{}]* _{}, {}_\n *Prioridad:* _{}_\n *Resumen:* {} \n'.format(issue['id'],issue['Type'],issue['State'],issue['Priority'],escapeMarkdown(utf8(issue['summary'])))
         keyboard.append([InlineKeyboardButton(issue['id'],callback_data=issue['id'])])
     reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=False, one_time_keyboard=True)
-    logger.info(texto)
+
+    texto += '\n *Elegí la tarea:*'
+
     if len(keyboard) > 0:
         update.callback_query.edit_message_text(text=texto,reply_markup=reply_markup,parse_mode='Markdown')
         return ELEGIR_ISSUE
