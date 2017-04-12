@@ -35,8 +35,9 @@ def start(bot, update):
         keyboard = []
         for host in usuario['hosts']:
             keyboard.append([InlineKeyboardButton(text=host['host'], callback_data=host['host'])])
+        keyboard.append([InlineKeyboardButton(text='Agregar nuevo host', callback_data='nuevo_host')])
         reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=False, one_time_keyboard=True)
-    	logger.info("{} hosts registrados para el usuario".format(len(keyboard)))
+    	logger.info("{} hosts registrados para el usuario".format(len(usuario['hosts'])))
     	update.message.reply_text("Elegí un host para conectarte", reply_markup=reply_markup)
     	return ELEGIR_HOST
     update.message.reply_text("Hola, parece que no estás registrado, por favor mandá el host de youtrack")
@@ -69,6 +70,11 @@ def escapeMarkdown(text):
     text = text.replace('_','\_')
     text = text.replace('*','\*')
     return text
+
+def nuevo_host(bot, update, user_data):
+    bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
+    update.callback_query.edit_message_text(text="Ingresá el host")
+    return IDENTIFICACION
 
 def identificar(bot, update, user_data):
     info = update.message.text

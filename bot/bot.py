@@ -5,7 +5,7 @@
 import logging
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, InlineQueryHandler, CallbackQueryHandler,ConversationHandler,RegexHandler
 from telegram import InlineQueryResultArticle, InputTextMessageContent
-from bot_utils import start,identificar,error,elegir_proyecto,elegir_issue,recibir_horas,terminar,confirmar_host_ok,confirmar_host_ko,confirmar_username_ok,confirmar_username_ko,elegir_host,pedir_horas,salir
+from bot_utils import start,identificar,error,elegir_proyecto,elegir_issue,recibir_horas,terminar,confirmar_host_ok,confirmar_host_ko,confirmar_username_ok,confirmar_username_ko,elegir_host,pedir_horas,salir,nuevo_host
 from bot_utils import IDENTIFICACION, ELEGIR_ISSUE, HACER_ACTIVIDAD, RECIBIR, VER,CONFIRMAR,ELEGIR_HOST,ELEGIR_PROYECTO
 
 keys = {}
@@ -24,7 +24,7 @@ conv_handler = ConversationHandler(
 			CallbackQueryHandler(confirmar_username_ok,pattern='.*username_ok.*',pass_user_data=True),
 			CallbackQueryHandler(confirmar_username_ko,pattern='.*username_ko.*',pass_user_data=True)
 		],
-		ELEGIR_HOST:[CallbackQueryHandler(elegir_host,pass_user_data=True)],
+		ELEGIR_HOST:[CallbackQueryHandler(nuevo_host,pattern='.*nuevo_host.*',pass_user_data=True),CallbackQueryHandler(elegir_host,pass_user_data=True)],
 		ELEGIR_PROYECTO:[CallbackQueryHandler(elegir_proyecto,pass_user_data=True)],
 	    ELEGIR_ISSUE: [CallbackQueryHandler(elegir_issue,pass_user_data=True)],
         HACER_ACTIVIDAD: [],
