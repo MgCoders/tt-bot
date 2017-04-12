@@ -12,6 +12,8 @@ notebooks:
 
 bot:
  build: ./python2
+ ports:
+   - "127.0.0.1:8443:8443"
  volumes:
    - ./bot:/home/ds/notebooks
  command: /opt/ds/bin/python -u /home/ds/notebooks/bot.py
