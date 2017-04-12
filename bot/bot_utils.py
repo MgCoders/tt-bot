@@ -157,7 +157,8 @@ def elegir_proyecto(bot, update, user_data):
     logger.info('Elegir Proyecto Opción {}'.format(user_data['proyecto']))
 
     connection = Connection(user_data['host']['host'],user_data['host']['username'],user_data['host']['pass'])
-    issues = connection.getIssues(user_data['proyecto'],'assignee:'+user_data['host']['username'],0,10)
+    simple_login_name = connection.getUser(user_data['host']['username'])['login']
+    issues = connection.getIssues(user_data['proyecto'],'assignee:'+simple_login_name,0,10)
 
     keyboard = []
     texto = '*Tareas:* \n '
