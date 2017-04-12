@@ -10,7 +10,6 @@ from youtrack.connection import Connection
 from datetime import datetime
 import socket
 import urlparse
-
 #Sesiones Activas, sustituir por Memcached
 sesiones = {}
 
@@ -52,17 +51,27 @@ def salir(bot, update, user_data):
 def error(bot, update, error):
     logger.warn('Update "%s" caused error "%s"' % (update, error))
 
+def checkAndFixUrl(raw_data):
+    finalUrl = None
+    url = urlparse.urlparse(raw_data)
+    if not url.scheme:
+        raw_data = 'http://'+raw_data
+        url = urlparse.urlparse(raw_data)
+    #Ver si resuelve o excepcion
+    hostname = socket.gethostbyname(url.hostname)
+    if url.path:
+        finalUrl = url.scheme+'://'+url.netloc+'/'+url.path
+    else:
+        finalUrl = url.scheme+'://'+url.netloc
+    return finalUrl
+
 def identificar(bot, update, user_data):
     info = update.message.text
     bot.sendChatAction(chat_id=update.message.chat_id, action=ChatAction.TYPING)
     logger.info("Info received {}".format(info))
     if not user_data.get('host',None) or not user_data['host'].get('host',None):
         try:
-            #Resuelve?
-            addr = socket.gethostbyname(info)
-            #Es url absoluta?
-            if not bool(urlparse.urlparse(info).netloc):
-                info = 'http://'+info+'/'
+            info = checkAndFixUrl(info)
             user_data['host'] = {}
             user_data['host']['host'] = info
             keyboard = [[InlineKeyboardButton(text="Correcto", callback_data='host_ok'),InlineKeyboardButton(text="Corregir", callback_data='host_ko')]]
@@ -162,10 +171,10 @@ def elegir_proyecto(bot, update, user_data):
     keyboard = []
     texto = '*Tareas:* \n '
     for issue in issues:
-        texto += '\n *[{}]* _{}, {}_\n *Prioridad:* _{}_\n *Resumen:* {} \n\n *Elegí la tarea:*'.format(issue['id'],issue['Type'],issue['State'],issue['Priority'],issue['summary'])
+        texto += '\n *[{}]* _{}, {}_\n *Prioridad:* _{}_\n *Resumen:* {} \n\n *Elegí la tarea:*'.format(issue['id'],issue['Type'],issue['State'],issue['Priority'],utf8(issue['summary']))
         keyboard.append([InlineKeyboardButton(issue['id'],callback_data=issue['id'])])
     reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=False, one_time_keyboard=True)
-
+    logger.info(texto)
     if len(keyboard) > 0:
         update.callback_query.edit_message_text(text=texto,reply_markup=reply_markup,parse_mode='Markdown')
         return ELEGIR_ISSUE
