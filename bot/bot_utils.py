@@ -8,7 +8,8 @@ from telegram import InlineQueryResultArticle, InputTextMessageContent, InlineKe
 from Repository import Repository
 from youtrack.connection import Connection
 from datetime import datetime
-
+import socket
+import urlparse
 
 #Sesiones Activas, sustituir por Memcached
 sesiones = {}
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 IDENTIFICACION, VER, ELEGIR_ISSUE, HACER_ACTIVIDAD, RECIBIR, CONFIRMAR,ELEGIR_HOST,ELEGIR_PROYECTO = range(8)
 # Database
 usuarios = Repository('users','ttbot')
-usuarios.getCollection().remove({})
+#usuarios.getCollection().remove({})
 connections = {}
 
 def utf8(unicode_text):
@@ -42,6 +43,11 @@ def start(bot, update):
     update.message.reply_text("Hola, parece que no estás registrado, por favor mandá el host de youtrack")
     return IDENTIFICACION
 
+def salir(bot, update, user_data):
+    logger.info("Salir {}".format(user_data['host']['username']))
+    user_data.clear()
+    update.message.reply_text("Chau!")
+    return ConversationHandler.END
 
 def error(bot, update, error):
     logger.warn('Update "%s" caused error "%s"' % (update, error))
@@ -51,12 +57,22 @@ def identificar(bot, update, user_data):
     bot.sendChatAction(chat_id=update.message.chat_id, action=ChatAction.TYPING)
     logger.info("Info received {}".format(info))
     if not user_data.get('host',None) or not user_data['host'].get('host',None):
-        user_data['host'] = {}
-        user_data['host']['host'] = info
-        keyboard = [[InlineKeyboardButton(text="Correcto", callback_data='host_ok'),InlineKeyboardButton(text="Corregir", callback_data='host_ko')]]
-        reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=False, one_time_keyboard=True)
-        update.message.reply_text("Es correcto el host? {}:".format(user_data['host']['host']), reply_markup=reply_markup)
-        return CONFIRMAR
+        try:
+            #Resuelve?
+            addr = socket.gethostbyname(info)
+            #Es url absoluta?
+            if not bool(urlparse.urlparse(info).netloc):
+                info = 'http://'+info+'/'
+            user_data['host'] = {}
+            user_data['host']['host'] = info
+            keyboard = [[InlineKeyboardButton(text="Correcto", callback_data='host_ok'),InlineKeyboardButton(text="Corregir", callback_data='host_ko')]]
+            reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=False, one_time_keyboard=True)
+            update.message.reply_text("Es correcto el host? {}:".format(user_data['host']['host']), reply_markup=reply_markup)
+            return CONFIRMAR
+        except Exception as e:
+            logger.error(e)
+            update.message.reply_text("{} no parece ser un host correcto, intentá de nuevo".format(info))
+            return IDENTIFICACION
     elif not user_data['host'].get('username',None):
         user_data['host']['username'] = info
         keyboard = [[InlineKeyboardButton(text="Correcto", callback_data='username_ok'),InlineKeyboardButton(text="Corregir", callback_data='username_ko')]]
@@ -141,15 +157,21 @@ def elegir_proyecto(bot, update, user_data):
     logger.info('Elegir Proyecto Opción {}'.format(user_data['proyecto']))
 
     connection = Connection(user_data['host']['host'],user_data['host']['username'],user_data['host']['pass'])
-    issues = connection.getIssues(user_data['proyecto'],'',0,10)
+    issues = connection.getIssues(user_data['proyecto'],'assignee:'+user_data['host']['username'],0,10)
 
     keyboard = []
+    texto = '*Tareas:* \n '
     for issue in issues:
-        keyboard.append([InlineKeyboardButton(issue['summary'],callback_data=issue['id'])])
-    reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+        texto += '\n *[{}]* _{}, {}_\n *Prioridad:* _{}_\n *Resumen:* {} \n\n *Elegí la tarea:*'.format(issue['id'],issue['Type'],issue['State'],issue['Priority'],issue['summary'])
+        keyboard.append([InlineKeyboardButton(issue['id'],callback_data=issue['id'])])
+    reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=False, one_time_keyboard=True)
 
-    update.callback_query.edit_message_text(text="Elegí la tarea",reply_markup=reply_markup)
-    return ELEGIR_ISSUE
+    if len(keyboard) > 0:
+        update.callback_query.edit_message_text(text=texto,reply_markup=reply_markup,parse_mode='Markdown')
+        return ELEGIR_ISSUE
+    else:
+        update.callback_query.edit_message_text(text="No hay tareas asignadas a vos! Chau")
+        return ConversationHandler.END
 
 def elegir_issue(bot, update, user_data):
     bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
