@@ -8,8 +8,7 @@ from telegram import InlineQueryResultArticle, InputTextMessageContent, InlineKe
 from Repository import Repository
 from youtrack.connection import Connection
 from datetime import datetime
-import socket
-import urlparse
+from utils import utf8,escapeMarkdown,checkAndFixUrl
 #Sesiones Activas, sustituir por Memcached
 sesiones = {}
 
@@ -23,8 +22,7 @@ usuarios = Repository('users','ttbot')
 #usuarios.getCollection().remove({})
 connections = {}
 
-def utf8(unicode_text):
-    return unicode_text.encode('utf-8')
+
 
 def start(bot, update):
     logger.info("Bot Started")
@@ -52,24 +50,6 @@ def salir(bot, update, user_data):
 def error(bot, update, error):
     logger.warn('Update "%s" caused error "%s"' % (update, error))
 
-def checkAndFixUrl(raw_data):
-    finalUrl = None
-    url = urlparse.urlparse(raw_data)
-    if not url.scheme:
-        raw_data = 'http://'+raw_data
-        url = urlparse.urlparse(raw_data)
-    #Ver si resuelve o excepcion
-    hostname = socket.gethostbyname(url.hostname)
-    if url.path:
-        finalUrl = url.scheme+'://'+url.netloc+'/'+url.path
-    else:
-        finalUrl = url.scheme+'://'+url.netloc
-    return finalUrl
-
-def escapeMarkdown(text):
-    text = text.replace('_','\_')
-    text = text.replace('*','\*')
-    return text
 
 def nuevo_host(bot, update, user_data):
     bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
