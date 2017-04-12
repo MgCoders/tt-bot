@@ -8,7 +8,7 @@ from telegram import InlineQueryResultArticle, InputTextMessageContent, InlineKe
 from Repository import Repository
 from youtrack.connection import Connection
 from datetime import datetime
-from utils import utf8,escapeMarkdown,checkAndFixUrl
+from utils import utf8,escapeMarkdown,checkAndFixUrl,splitEmail
 #Sesiones Activas, sustituir por Memcached
 sesiones = {}
 
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 IDENTIFICACION, VER, ELEGIR_ISSUE, HACER_ACTIVIDAD, RECIBIR, CONFIRMAR,ELEGIR_HOST,ELEGIR_PROYECTO = range(8)
 # Database
 usuarios = Repository('users','ttbot')
-#usuarios.getCollection().remove({})
+usuarios.getCollection().remove({})
 connections = {}
 
 
@@ -157,8 +157,8 @@ def elegir_proyecto(bot, update, user_data):
     logger.info('Elegir Proyecto Opción {}'.format(user_data['proyecto']))
 
     connection = Connection(user_data['host']['host'],user_data['host']['username'],user_data['host']['pass'])
-    simple_login_name = connection.getUser(user_data['host']['username'])['login']
-    issues = connection.getIssues(user_data['proyecto'],'assignee:'+simple_login_name,0,10)
+    username,email = splitEmail(user_data['host']['username'])
+    issues = connection.getIssues(user_data['proyecto'],'assignee:'+username,0,10)
 
     keyboard = []
     texto = '*Tareas:* \n '

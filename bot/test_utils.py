@@ -1,5 +1,5 @@
 import unittest
-from utils import utf8,escapeMarkdown,checkAndFixUrl
+from utils import utf8,escapeMarkdown,checkAndFixUrl,splitEmail
 
 class UtilsTestCase(unittest.TestCase):
     """Tests for `utils.py`."""
@@ -43,6 +43,18 @@ class UtilsTestCase(unittest.TestCase):
     def test_ip_puerto_path(self):
         """Ip, path y puerto"""
         self.assertEqual('http://127.0.0.1:8989/youtrack',checkAndFixUrl('127.0.0.1:8989/youtrack'))
+
+    def test_split_email_user(self):
+        """User comun"""
+        username,email = splitEmail('rsperoni')
+        self.assertEqual('rsperoni',username)
+        self.assertIs(email,None)
+
+    def test_split_email(self):
+        """User email"""
+        username,email = splitEmail('rsperoni@mgcoders.com')
+        self.assertEqual('rsperoni',username)
+        self.assertEqual('rsperoni@mgcoders.com',email)
 
 if __name__ == '__main__':
     unittest.main()

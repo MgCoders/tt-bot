@@ -24,3 +24,14 @@ def escapeMarkdown(text):
     text = text.replace('_','\_')
     text = text.replace('*','\*')
     return text
+
+def splitEmail(raw_data):
+    username = email = None
+    s = raw_data.split('@')
+    if (len(s)>1):
+        email = raw_data
+        username = s[0]
+    else:
+        email = None
+        username = raw_data
+    return (username,email)
