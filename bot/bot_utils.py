@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 IDENTIFICACION, VER, ELEGIR_ISSUE, HACER_ACTIVIDAD, RECIBIR, CONFIRMAR,ELEGIR_HOST,ELEGIR_PROYECTO = range(8)
 # Database
 usuarios = Repository('users','ttbot')
-usuarios.getCollection().remove({})
+#usuarios.getCollection().remove({})
 connections = {}
 
 
@@ -59,8 +59,8 @@ def nuevo_host(bot, update, user_data):
 def identificar(bot, update, user_data):
     info = update.message.text
     bot.sendChatAction(chat_id=update.message.chat_id, action=ChatAction.TYPING)
-    logger.info("Info received {}".format(info))
     if not user_data.get('host',None) or not user_data['host'].get('host',None):
+        logger.info("Host received {}".format(info))
         try:
             info = checkAndFixUrl(info)
             user_data['host'] = {}
@@ -74,12 +74,14 @@ def identificar(bot, update, user_data):
             update.message.reply_text("{} no parece ser un host correcto, intentá de nuevo".format(info))
             return IDENTIFICACION
     elif not user_data['host'].get('username',None):
+        logger.info("Username received {}".format(info))
         user_data['host']['username'] = info
         keyboard = [[InlineKeyboardButton(text="Correcto", callback_data='username_ok'),InlineKeyboardButton(text="Corregir", callback_data='username_ko')]]
         reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=False, one_time_keyboard=True)
         update.message.reply_text("Es correcto el usuario? {}:".format(user_data['host']['username']), reply_markup=reply_markup)
         return CONFIRMAR
     else:
+        logger.info("Password received")
         #Try to login
         user_data['host']['pass'] = info
         try:
@@ -158,7 +160,8 @@ def elegir_proyecto(bot, update, user_data):
 
     connection = Connection(user_data['host']['host'],user_data['host']['username'],user_data['host']['pass'])
     username,email = splitEmail(user_data['host']['username'])
-    issues = connection.getIssues(user_data['proyecto'],'assignee:'+username,0,10)
+    query = 'Type: Task and #Unresolved and ( Assignee: {} or #Unassigned )'.format(username)
+    issues = connection.getIssues(user_data['proyecto'],query,0,10)
 
     keyboard = []
     texto = '*Tareas:* \n '
