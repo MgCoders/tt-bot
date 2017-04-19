@@ -3,7 +3,7 @@ os: linux
 
 files:
  - source: /
-   destination: /home/ubuntu/omicflows-frontend-deploy
+   destination: /home/ubuntu/tt-bot-deploy
 
 permissions:
  - object: /
