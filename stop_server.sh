@@ -2,4 +2,4 @@
 set -x
 
 ls $PWD 
-docker-compose -f docker-compose.produccion.yml kill
+echo Aca estoy antes del instal
