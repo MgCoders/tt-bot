@@ -17,7 +17,7 @@ hooks:
       timeout: 300
       runas: root
     - location: start_server.sh
-      timeout: 300
+      timeout: 800
       runas: root
   ValidateService:
     - location: check_service.sh
