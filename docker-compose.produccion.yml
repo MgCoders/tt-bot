@@ -1,0 +1,15 @@
+bot:
+ image: 270051160229.dkr.ecr.us-east-1.amazonaws.com/tt-bot
+ ports:
+   - "127.0.0.1:8443:8443"
+ volumes:
+   - ./bot:/home/ds/notebooks
+ command: /opt/ds/bin/python -u /home/ds/notebooks/bot.py
+ links:
+    - mongo
+
+
+mongo:
+  image: tutum/mongodb:3.2
+  environment:
+    - AUTH="no"
