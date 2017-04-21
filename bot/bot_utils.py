@@ -7,6 +7,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Inlin
 from telegram import InlineQueryResultArticle, InputTextMessageContent, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, ChatAction
 from Repository import Repository
 from youtrack.connection import Connection
+from youtrack import YouTrackException
 from datetime import datetime
 from utils import utf8,escapeMarkdown,checkAndFixUrl,splitEmail
 #Sesiones Activas, sustituir por Memcached
@@ -156,7 +157,7 @@ def elegir_host(bot, update, user_data):
     keyboard = []
     for proyecto in proyectos.keys():
         keyboard.append(InlineKeyboardButton(proyectos[proyecto],callback_data=proyecto))
-    
+
     #Acomodo el teclado
     keyboard = [keyboard[i:i+3] for i in range(0, len(keyboard), 3)]
     reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
@@ -211,7 +212,14 @@ def elegir_issue(bot, update, user_data):
     logger.info('Elegir Issue {} Opción {}'.format(user_data['proyecto'],user_data['issue']))
 
     connection = Connection(user_data['host']['host'],user_data['host']['username'],user_data['host']['pass'])
-    the_types = connection.getProjectTimeTrackingWorkTypes(user_data['proyecto'])
+    try:
+        the_types = connection.getProjectTimeTrackingWorkTypes(user_data['proyecto'])
+    except YouTrackException as e:
+        logger.error('Error de Youtrack {}'.format(e))
+        reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("Elegir otro proyecto",callback_data=user_data['host']['host'])]], resize_keyboard=True, one_time_keyboard=True)
+        del user_data['proyecto']
+        update.callback_query.edit_message_text(text="El proyecto no admite registro de horas, hablá con tu PM",reply_markup=reply_markup)
+        return ELEGIR_HOST
 
     user_data['types'] = the_types['types']
     keyboard = []
