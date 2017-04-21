@@ -42,7 +42,10 @@ def start(bot, update):
     return IDENTIFICACION
 
 def salir(bot, update, user_data):
-    logger.info("Salir {}".format(user_data['host']['username']))
+    if user_data.get('host'):
+        logger.info("Salir {}".format(user_data['host']['username']))
+    else:
+        logger.info("Salir invitado")
     user_data.clear()
     update.message.reply_text("Chau!")
     return ConversationHandler.END
