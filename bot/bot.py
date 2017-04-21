@@ -26,7 +26,7 @@ conv_handler = ConversationHandler(
 		],
 		ELEGIR_HOST:[CallbackQueryHandler(nuevo_host,pattern='.*nuevo_host.*',pass_user_data=True),CallbackQueryHandler(elegir_host,pass_user_data=True)],
 		ELEGIR_PROYECTO:[CallbackQueryHandler(elegir_proyecto,pass_user_data=True)],
-	    ELEGIR_ISSUE: [CallbackQueryHandler(elegir_issue,pass_user_data=True)],
+	    ELEGIR_ISSUE: [CallbackQueryHandler(elegir_proyecto,pattern='.*esolved.*',pass_user_data=True),CallbackQueryHandler(elegir_issue,pass_user_data=True)],
         HACER_ACTIVIDAD: [],
 
         RECIBIR: [CallbackQueryHandler(pedir_horas, pass_user_data=True),MessageHandler(Filters.text, recibir_horas, pass_user_data=True)],

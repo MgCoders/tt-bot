@@ -52,7 +52,13 @@ def salir(bot, update, user_data):
 
 def error(bot, update, error):
     logger.warn('Update "%s" caused error "%s"' % (update, error))
-
+    if user_data.get('host'):
+        logger.info("Salir Error {}".format(user_data['host']['username']))
+    else:
+        logger.info("Salir Error invitado")
+    user_data.clear()
+    update.message.reply_text("Hubo un error Chau!")
+    return ConversationHandler.END
 
 def nuevo_host(bot, update, user_data):
     bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
@@ -149,29 +155,45 @@ def elegir_host(bot, update, user_data):
 
     keyboard = []
     for proyecto in proyectos.keys():
-        keyboard.append([InlineKeyboardButton(proyectos[proyecto],callback_data=proyecto)])
+        keyboard.append(InlineKeyboardButton(proyectos[proyecto],callback_data=proyecto))
+    
+    #Acomodo el teclado
+    keyboard = [keyboard[i:i+3] for i in range(0, len(keyboard), 3)]
     reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
-
     update.callback_query.edit_message_text(text="Bien! Elegí un proyecto"  ,reply_markup=reply_markup)
     return ELEGIR_PROYECTO
 
 def elegir_proyecto(bot, update, user_data):
     bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
 
-    user_data['proyecto'] = update.callback_query.data
-    logger.info('Elegir Proyecto Opción {}'.format(user_data['proyecto']))
+    #Es la primera vez que entra o cambia tipo de tareas?
+    tipo_tarea = '#Unresolved'
+    if not user_data.get('proyecto'):
+        user_data['proyecto'] = update.callback_query.data
+        logger.info('Elegir Proyecto Opción {}'.format(user_data['proyecto']))
+    else:
+        tipo_tarea = update.callback_query.data
+        logger.info('Elegir Proyecto Opción {} {}'.format(user_data['proyecto'],tipo_tarea))
 
     connection = Connection(user_data['host']['host'],user_data['host']['username'],user_data['host']['pass'])
     username,email = splitEmail(user_data['host']['username'])
-    query = 'Type: Task and #Unresolved and ( Assignee: {} or #Unassigned )'.format(username)
+
+    query = 'Type: Task and {} and ( Assignee: {} or #Unassigned )'.format(tipo_tarea, username)
     issues = connection.getIssues(user_data['proyecto'],query,0,10)
 
     keyboard = []
     texto = '*Tareas:* \n '
     for issue in issues:
         texto += '\n *[{}]* _{}, {}_\n *Prioridad:* _{}_\n *Resumen:* {} \n'.format(issue['id'],issue['Type'],issue['State'],issue['Priority'],escapeMarkdown(utf8(issue['summary'])))
-        keyboard.append([InlineKeyboardButton(issue['id'],callback_data=issue['id'])])
-    reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=False, one_time_keyboard=True)
+        keyboard.append(InlineKeyboardButton(issue['id'],callback_data=issue['id']))
+    #Agrego posibilidad de ver otras tareas
+    if tipo_tarea == '#Unresolved':
+        keyboard.append(InlineKeyboardButton('Ver solucionadas',callback_data='#Resolved'))
+    else:
+        keyboard.append(InlineKeyboardButton('Ver no solucionadas',callback_data='#Unresolved'))
+    #Acomodo el teclado
+    keyboard = [keyboard[i:i+3] for i in range(0, len(keyboard), 3)]
+    reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
 
     texto += '\n *Elegí la tarea:*'
 
