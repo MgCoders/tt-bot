@@ -167,12 +167,18 @@ def host_elegido(bot, update, user_data):
     try:
         connection = Connection(user_data['host']['host'], user_data['host']['username'], user_data['host']['pass'])
         connections[usuario['chat_id']] = connection
+        proyectos = connection.getProjects()
+
     except YouTrackException as e:
         logger.error(e)
-        del user_data['host']
+        del user_data['host']['pass']
+        usuarios.getCollection().update({'chat_id': update.callback_query.from_user.id},
+                            { '$pull': {'hosts': user_data['host']} });
+
+        return CONFIRMAR
 
 
-    proyectos = connection.getProjects()
+
 
     keyboard = []
     for proyecto in proyectos.keys():
@@ -195,7 +201,7 @@ def proyecto_elegido(bot, update, user_data):
         logger.info('Elegir Proyecto Opción {}'.format(user_data['proyecto']))
     else:
         user_data['tipo_tarea'] = update.callback_query.data
-        logger.info('Elegir Proyecto Opción {} {}'.format(user_data['proyecto'], tipo_tarea))
+        logger.info('Elegir Proyecto Opción {} {}'.format(user_data['proyecto'], user_data['tipo_tarea']))
 
     connection = Connection(user_data['host']['host'], user_data['host']['username'], user_data['host']['pass'])
     username, email = splitEmail(user_data['host']['username'])
@@ -317,12 +323,12 @@ def issue_actualizar_estado(bot, update, user_data):
     if update.callback_query.data == 'issue_estado_cerrar':
         estado = 'Fixed'
     else:
-        estado = 'InProgress'
+        estado = 'In Progress'
 
     logger.info('Actualizar estado issue {} {}'.format(user_data['issue'], estado))
     try:
         connection = Connection(user_data['host']['host'], user_data['host']['username'], user_data['host']['pass'])
-        command = 'State%20'+estado
+        command = 'State '+estado
         connection.executeCommand(user_data['issue'], command)
 
         update.callback_query.edit_message_text("Gracias amego!")
