@@ -36,8 +36,7 @@ conv_handler = ConversationHandler(
         RECIBIR: [CallbackQueryHandler(pedir_horas, pass_user_data=True),
                   MessageHandler(Filters.text, recibir_horas, pass_user_data=True)]
     },
-    fallbacks=[CommandHandler('salir', salir, pass_user_data=True), CallbackQueryHandler(terminar, pattern='terminar',
-                                                                                        pass_user_data=True)]
+    fallbacks=[CommandHandler('salir', salir, pass_user_data=True), CallbackQueryHandler(terminar, pattern='terminar', pass_user_data=True)]
 )
 dispatcher.add_handler(conv_handler)
 

@@ -339,13 +339,13 @@ def issue_actualizar_estado(bot, update, user_data):
     return ConversationHandler.END
 
 
-def terminar(bot, update):
+def terminar(bot, update,user_data):
     bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
     usuario = usuarios.getCollection().find_one({'chat_id': update.callback_query.from_user.id})
-    logger.info('Elegir ({}) {}'.format(utf8(usuario['nombre']), update.callback_query.data))
+    logger.info('Terminar ({})'.format(user_data['host']['username']))
 
-    update.callback_query.edit_message_text(text="Hasta la próxima {}!".format(utf8(usuario['nombre'])))
-
+    update.callback_query.edit_message_text(text="Hasta la próxima!")
+    user_data.clear()
     return ConversationHandler.END
 
 
