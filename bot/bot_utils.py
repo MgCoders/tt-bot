@@ -164,8 +164,13 @@ def host_elegido(bot, update, user_data):
     host = next(x for x in usuario['hosts'] if x['host'] == update.callback_query.data)
     user_data['host'] = host
 
-    connection = Connection(user_data['host']['host'], user_data['host']['username'], user_data['host']['pass'])
-    connections[usuario['chat_id']] = connection
+    try:
+        connection = Connection(user_data['host']['host'], user_data['host']['username'], user_data['host']['pass'])
+        connections[usuario['chat_id']] = connection
+    except YouTrackException as e:
+        logger.error(e)
+        del user_data['host']
+
 
     proyectos = connection.getProjects()
 
@@ -184,18 +189,18 @@ def proyecto_elegido(bot, update, user_data):
     bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
 
     # Es la primera vez que entra o cambia tipo de tareas?
-    tipo_tarea = '#Unresolved'
+    user_data['tipo_tarea'] = '#Unresolved'
     if not user_data.get('proyecto'):
         user_data['proyecto'] = update.callback_query.data
         logger.info('Elegir Proyecto Opción {}'.format(user_data['proyecto']))
     else:
-        tipo_tarea = update.callback_query.data
+        user_data['tipo_tarea'] = update.callback_query.data
         logger.info('Elegir Proyecto Opción {} {}'.format(user_data['proyecto'], tipo_tarea))
 
     connection = Connection(user_data['host']['host'], user_data['host']['username'], user_data['host']['pass'])
     username, email = splitEmail(user_data['host']['username'])
 
-    query = 'Type: Task and {} and ( Assignee: {} or #Unassigned )'.format(tipo_tarea, username)
+    query = 'Type: Task and {} and ( Assignee: {} or #Unassigned )'.format(user_data['tipo_tarea'], username)
     issues = connection.getIssues(user_data['proyecto'], query, 0, 10)
 
     keyboard = []
@@ -207,7 +212,7 @@ def proyecto_elegido(bot, update, user_data):
                                                                                         utf8(issue['summary'])))
         keyboard.append(InlineKeyboardButton(issue['id'], callback_data=issue['id']))
     # Agrego posibilidad de ver otras tareas
-    if tipo_tarea == '#Unresolved':
+    if user_data['tipo_tarea'] == '#Unresolved':
         keyboard.append(InlineKeyboardButton('Ver solucionadas', callback_data='#Resolved'))
     else:
         keyboard.append(InlineKeyboardButton('Ver no solucionadas', callback_data='#Unresolved'))
@@ -286,11 +291,45 @@ def recibir_horas(bot, update, user_data):
         connection = Connection(user_data['host']['host'], user_data['host']['username'], user_data['host']['pass'])
         connection.createWorkItem(user_data['issue'], work_item)
         logger.info('Guardar tiempo {} {}'.format(user_data['issue'], duracion))
-        update.message.reply_text("Gracias amego!")
+
+        issue = connection.getIssue(user_data['issue'])
+
+        keyboard = []
+        if user_data['tipo_tarea'] == '#Unresolved':
+            keyboard.append([InlineKeyboardButton('Marcar como cerrada', callback_data='issue_estado_cerrar')])
+        else:
+            keyboard.append([InlineKeyboardButton('Marcar como en progreso', callback_data='issue_estado_en_progreso')])
+        keyboard.append([InlineKeyboardButton('Dejar como {}'.format(issue['State']),
+                                              callback_data='terminar')])
+        reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+        update.message.reply_text("Gracias amego! Y ahora?", reply_markup=reply_markup)
+        return CONFIRMAR
+
     except Exception as e:
         logger.error(e)
         update.message.reply_text("No eh!")
 
+    return ConversationHandler.END
+
+
+def issue_actualizar_estado(bot, update, user_data):
+    bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
+    if update.callback_query.data == 'issue_estado_cerrar':
+        estado = 'Fixed'
+    else:
+        estado = 'InProgress'
+
+    logger.info('Actualizar estado issue {} {}'.format(user_data['issue'], estado))
+    try:
+        connection = Connection(user_data['host']['host'], user_data['host']['username'], user_data['host']['pass'])
+        command = 'State%20'+estado
+        connection.executeCommand(user_data['issue'], command)
+
+        update.callback_query.edit_message_text("Gracias amego!")
+
+    except Exception as e:
+        logger.error(e)
+        update.callback_query.edit_message_text("No eh!")
     return ConversationHandler.END
 
 

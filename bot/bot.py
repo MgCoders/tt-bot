@@ -8,9 +8,8 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Inlin
 from telegram import InlineQueryResultArticle, InputTextMessageContent
 from bot_utils import start, identificar, error, proyecto_elegido, issue_elegido, recibir_horas, terminar, \
     confirmar_host_ok, confirmar_host_ko, confirmar_username_ok, confirmar_username_ko, host_elegido, pedir_horas, \
-    salir, \
-    nuevo_host
-from bot_utils import IDENTIFICAR, ISSUE, HACER_ACTIVIDAD, RECIBIR, VER, CONFIRMAR, HOST, \
+    salir, issue_actualizar_estado, nuevo_host
+from bot_utils import IDENTIFICAR, ISSUE, RECIBIR, CONFIRMAR, HOST, \
     PROYECTO
 
 keys = {}
@@ -26,7 +25,8 @@ conv_handler = ConversationHandler(
             CallbackQueryHandler(confirmar_host_ok, pattern='.*host_ok.*', pass_user_data=True),
             CallbackQueryHandler(confirmar_host_ko, pattern='.*host_ko.*', pass_user_data=True),
             CallbackQueryHandler(confirmar_username_ok, pattern='.*username_ok.*', pass_user_data=True),
-            CallbackQueryHandler(confirmar_username_ko, pattern='.*username_ko.*', pass_user_data=True)
+            CallbackQueryHandler(confirmar_username_ko, pattern='.*username_ko.*', pass_user_data=True),
+            CallbackQueryHandler(issue_actualizar_estado, pattern='.*issue_estado.*', pass_user_data=True)
         ],
         HOST: [CallbackQueryHandler(nuevo_host, pattern='.*nuevo_host.*', pass_user_data=True),
                CallbackQueryHandler(host_elegido, pass_user_data=True)],
@@ -36,7 +36,8 @@ conv_handler = ConversationHandler(
         RECIBIR: [CallbackQueryHandler(pedir_horas, pass_user_data=True),
                   MessageHandler(Filters.text, recibir_horas, pass_user_data=True)]
     },
-    fallbacks=[CommandHandler('salir', salir, pass_user_data=True)]
+    fallbacks=[CommandHandler('salir', salir, pass_user_data=True), CallbackQueryHandler(terminar, pattern='terminar',
+                                                                                        pass_user_data=True)]
 )
 dispatcher.add_handler(conv_handler)
 
