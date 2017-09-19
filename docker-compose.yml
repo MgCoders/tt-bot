@@ -1,27 +1,29 @@
-notebooks:
-  build: ./python2
-  ports:
-    - "0.0.0.0:8888:8888"
-    - "0.0.0.0:6006:6006"
-  volumes:
-    - ./notebooks:/home/ds/notebooks
-    - ./notebooks/jupyter:/home/ds/.jupyter
-    - ./libs:/home/ds/notebooks/libs
-  links:
-    - mongo
+version: "3.1"
+services:
 
-bot:
- build: ./python2
- ports:
-   - "127.0.0.1:8443:8443"
- volumes:
-   - ./bot:/home/ds/notebooks
- command: /opt/ds/bin/python -u /home/ds/notebooks/bot.py
- links:
-    - mongo
+  ttbot:
+   build: ./python2
+   ports:
+     - "9001:8443"
+   volumes:
+     - ./bot:/home/ds/notebooks
+   command: /opt/ds/bin/python -u /home/ds/notebooks/bot.py
+   depends_on:
+     - mongo
+   environment:
+     VIRTUAL_HOST: tt.mgcoders.com
+     VIRTUAL_PORT: 8443
+     LETSENCRYPT_HOST: tt.mgcoders.com
+     LETSENCRYPT_EMAIL: info@mgcoders.com
 
 
-mongo:
-  image: tutum/mongodb:3.2
-  environment:
-    - AUTH="no"
+  mongo:
+    image: tutum/mongodb:3.2
+    environment:
+      AUTH: "no"
+
+
+networks:
+  default:
+    external:
+      name: nginx-proxy

@@ -44,8 +44,8 @@ dispatcher.add_handler(conv_handler)
 dispatcher.add_error_handler(error)
 
 # Con SSL
-# updater.start_webhook(listen="127.0.0.1",port=8443,url_path=keys['telegram'])
-# updater.bot.setWebhook("https://tt-bot.mgcoders.com/" + keys['telegram'])
+updater.start_webhook(listen="0.0.0.0",port=8443,url_path=keys['telegram'])
+updater.bot.setWebhook("https://tt.mgcoders.com/" + keys['telegram'])
 # POLLING
-updater.start_polling()
+#updater.start_polling()
 updater.idle()
