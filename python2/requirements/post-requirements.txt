@@ -1,5 +1,0 @@
-pip
-python-telegram-bot
-pymongo
-httplib2
-urllib2-file

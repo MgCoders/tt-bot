@@ -1,12 +1,12 @@
 version: "3.1"
 services:
 
-  ttbot:
-   build: ./python2
+  bot:
+   build: .
    ports:
      - "9001:8443"
-   volumes:
-     - ./bot:/home/ds/notebooks
+#   volumes:
+#     - ./bot:/home/ds/notebooks
    command: /opt/ds/bin/python -u /home/ds/notebooks/bot.py
    depends_on:
      - mongo

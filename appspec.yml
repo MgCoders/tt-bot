@@ -2,7 +2,9 @@ version: 0.0
 os: linux
 
 files:
- - source: /
+ - source: ./*.yml
+   destination: /home/ubuntu/tt-bot-deploy
+ - source: ./*.sh
    destination: /home/ubuntu/tt-bot-deploy
 
 permissions:
