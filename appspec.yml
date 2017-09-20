@@ -2,9 +2,17 @@ version: 0.0
 os: linux
 
 files:
- - source: ./*.yml
+ - source: ./docker-compose.produccion.yml
    destination: /home/ubuntu/tt-bot-deploy
- - source: ./*.sh
+ - source: ./buildspec.yml
+   destination: /home/ubuntu/tt-bot-deploy
+ - source: ./appspec.yml
+   destination: /home/ubuntu/tt-bot-deploy
+ - source: ./start_server.sh
+   destination: /home/ubuntu/tt-bot-deploy
+ - source: ./stop_server.sh
+   destination: /home/ubuntu/tt-bot-deploy
+ - source: ./check_service.sh
    destination: /home/ubuntu/tt-bot-deploy
 
 permissions:
