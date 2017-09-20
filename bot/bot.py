@@ -1,7 +1,7 @@
 #!/bin/python
 # -*- coding: utf-8 -*-
 
-
+import os
 import logging
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, InlineQueryHandler, CallbackQueryHandler, \
     ConversationHandler, RegexHandler
@@ -13,7 +13,7 @@ from bot_utils import IDENTIFICAR, ISSUE, RECIBIR, CONFIRMAR, HOST, \
     PROYECTO
 
 keys = {}
-exec (open('key_all.py').read(), keys)
+keys['telegram'] = os.getenv('TOKEN', 'token')
 updater = Updater(token=keys['telegram'])
 
 dispatcher = updater.dispatcher

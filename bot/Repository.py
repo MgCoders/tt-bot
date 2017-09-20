@@ -17,7 +17,7 @@ class Repository(object):
     def __init__(self,dbcoll,dbdb,mongostring=None):
         if not mongostring:
             keys = {}
-            exec(open('key_all.py').read(), keys)
+            keys['mongostring'] = os.getenv('MONGO', 'mongo')
         self.client = MongoClient(keys['mongostring'])
         self.db_name = dbdb
         self.data_coll_name = dbcoll
