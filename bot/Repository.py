@@ -7,6 +7,7 @@ import datetime
 from random import randint
 from bson.objectid import ObjectId
 import gridfs
+import os
 
 
 class Repository(object):
