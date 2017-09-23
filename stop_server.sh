@@ -1,6 +1,5 @@
 #/bin/bash
 set -x
-
 echo cd tt-bot-deploy en home
 cd /home/ubuntu/tt-bot-deploy
 docker-compose -f docker-compose.produccion.yml kill && docker-compose -f docker-compose.produccion.yml rm -f

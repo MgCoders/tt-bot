@@ -207,7 +207,7 @@ def proyecto_elegido(bot, update, user_data):
     username, email = splitEmail(user_data['host']['username'])
 
     query = 'Type: Task and {} and ( Assignee: {} or #Unassigned )'.format(user_data['tipo_tarea'], username)
-    issues = connection.getIssues(user_data['proyecto'], query, 0, 10)
+    issues = connection.getIssues(user_data['proyecto'], query, 0, 20)
 
     keyboard = []
     texto = '*Tareas:* \n '
