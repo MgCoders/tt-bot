@@ -12,6 +12,7 @@ from bot_utils import start, identificar, error, proyecto_elegido, issue_elegido
 from bot_utils import IDENTIFICAR, ISSUE, RECIBIR, CONFIRMAR, HOST, \
     PROYECTO
 
+logger = logging.getLogger(__name__)
 keys = {}
 keys['telegram'] = os.getenv('TOKEN', 'token')
 updater = Updater(token=keys['telegram'])
@@ -44,11 +45,15 @@ dispatcher.add_handler(conv_handler)
 dispatcher.add_error_handler(error)
 
 mode = os.getenv('MODE', 'polling')
-if mode == 'webhooks':
+logger.info("Will run in %s mode.",mode)
+if mode == 'webhook':
     # Con SSL
     updater.start_webhook(listen="0.0.0.0",port=8443,url_path=keys['telegram'])
     updater.bot.setWebhook("https://"+os.getenv('VIRTUAL_HOST', 'localhost')+"/" + keys['telegram'])
+    logger.info("Listening in %s .","https://"+os.getenv('VIRTUAL_HOST', 'localhost')+"/TOKEN")
+    updater.idle()
 else:
     # POLLING
     updater.start_polling()
-updater.idle()
+    logger.info("Polling...")
+    updater.idle()

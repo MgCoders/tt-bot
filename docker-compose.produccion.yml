@@ -13,7 +13,7 @@ services:
      VIRTUAL_PORT: 8443
      LETSENCRYPT_HOST: tt.mgcoders.com
      LETSENCRYPT_EMAIL: info@mgcoders.com
-     TOKEN: 231077779:AAGil-zJH5uCMXzGtS8BoPk6su74RpPTPGM
+     TOKEN: ${TELEGRAM_TOKEN}
      MONGO: mongodb://mongo:27017/ttbot
      MODE: webhook
 

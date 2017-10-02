@@ -6,6 +6,8 @@ services:
    ports:
      - "9001:8443"
    command: /opt/ds/bin/python -u /home/ds/notebooks/bot.py
+   volumes:
+     - ./bot:/home/ds/notebooks
    depends_on:
      - mongo
    environment:
