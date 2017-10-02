@@ -12,7 +12,8 @@ from bot_utils import start, identificar, error, proyecto_elegido, issue_elegido
 from bot_utils import IDENTIFICAR, ISSUE, RECIBIR, CONFIRMAR, HOST, \
     PROYECTO
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 keys = {}
 keys['telegram'] = os.getenv('TOKEN', 'token')
 updater = Updater(token=keys['telegram'])
