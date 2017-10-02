@@ -5,8 +5,6 @@ services:
    image: 270051160229.dkr.ecr.us-east-1.amazonaws.com/tt-bot
    ports:
      - "9001:8443"
-#   volumes:
-#     - ./bot:/home/ds/notebooks
    command: /opt/ds/bin/python -u /home/ds/notebooks/bot.py
    depends_on:
      - mongo
@@ -15,8 +13,9 @@ services:
      VIRTUAL_PORT: 8443
      LETSENCRYPT_HOST: tt.mgcoders.com
      LETSENCRYPT_EMAIL: info@mgcoders.com
-     TOKEN: 231077779:AAGil-zJH5uCMXzGtS8BoPk6su74RpPTPGM
+     TOKEN: ${TELEGRAM_TOKEN}
      MONGO: mongodb://mongo:27017/ttbot
+     MODE: webhook
 
 
   mongo:
