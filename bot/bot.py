@@ -12,7 +12,8 @@ from bot_utils import start, identificar, error, proyecto_elegido, issue_elegido
 from bot_utils import IDENTIFICAR, ISSUE, RECIBIR, CONFIRMAR, HOST, \
     PROYECTO
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 keys = {}
 keys['telegram'] = os.getenv('TOKEN', 'token')
 updater = Updater(token=keys['telegram'])
@@ -32,8 +33,13 @@ conv_handler = ConversationHandler(
         HOST: [CallbackQueryHandler(nuevo_host, pattern='.*nuevo_host.*', pass_user_data=True),
                CallbackQueryHandler(host_elegido, pass_user_data=True)],
         PROYECTO: [CallbackQueryHandler(proyecto_elegido, pass_user_data=True)],
-        ISSUE: [CallbackQueryHandler(proyecto_elegido, pattern='.*esolved.*', pass_user_data=True),
-                CallbackQueryHandler(issue_elegido, pass_user_data=True)],
+        ISSUE: [
+
+        CallbackQueryHandler(proyecto_elegido, pattern='<', pass_user_data=True),
+        CallbackQueryHandler(proyecto_elegido, pattern='>', pass_user_data=True),
+        CallbackQueryHandler(proyecto_elegido, pattern='.*res.*', pass_user_data=True),
+                CallbackQueryHandler(issue_elegido, pass_user_data=True)
+                ],
         RECIBIR: [CallbackQueryHandler(pedir_horas, pass_user_data=True),
                   MessageHandler(Filters.text, recibir_horas, pass_user_data=True)]
     },
