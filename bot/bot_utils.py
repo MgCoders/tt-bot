@@ -24,6 +24,8 @@ IDENTIFICAR, VER, ISSUE, HACER_ACTIVIDAD, RECIBIR, CONFIRMAR, HOST, PROYECTO = r
 usuarios = Repository('users', 'ttbot')
 # usuarios.getCollection().remove({})
 connections = {}
+# Paginado issues
+max_issues_per_page = 5
 
 
 def start(bot, update):
@@ -195,19 +197,39 @@ def proyecto_elegido(bot, update, user_data):
     bot.sendChatAction(chat_id=update.callback_query.from_user.id, action=ChatAction.TYPING)
 
     # Es la primera vez que entra o cambia tipo de tareas?
-    user_data['tipo_tarea'] = '#Unresolved'
     if not user_data.get('proyecto'):
         user_data['proyecto'] = update.callback_query.data
+        user_data['pagging'] = [0,max_issues_per_page]
+        user_data['tipo_tarea'] = '#{Sin resolver}'
         logger.info('Elegir Proyecto Opción {}'.format(user_data['proyecto']))
+    elif update.callback_query.data == '>':
+        user_data['pagging'] = [user_data['pagging'][0]+max_issues_per_page, user_data['pagging'][1]+max_issues_per_page]
+    elif update.callback_query.data == '<':
+        user_data['pagging'] = [user_data['pagging'][0]-max_issues_per_page, user_data['pagging'][1]-max_issues_per_page]
     else:
         user_data['tipo_tarea'] = update.callback_query.data
+        user_data['pagging'] = [0,max_issues_per_page]
         logger.info('Elegir Proyecto Opción {} {}'.format(user_data['proyecto'], user_data['tipo_tarea']))
+
+    logger.info('paginas {}/{}'.format(user_data['pagging'][0],user_data['pagging'][1]))
 
     connection = Connection(user_data['host']['host'], user_data['host']['username'], user_data['host']['pass'])
     username, email = splitEmail(user_data['host']['username'])
 
-    query = 'Type: Task and {} and ( Assignee: {} or #Unassigned )'.format(user_data['tipo_tarea'], username)
-    issues = connection.getIssues(user_data['proyecto'], query, 0, 20)
+    #of #me #{Sin asignar} -Resolved
+    query = '(asignado a: '+username+' o #{Sin asignar}) y '+ user_data['tipo_tarea']
+    logger.info(query)
+    issues = connection.getIssues(user_data['proyecto'], query, user_data['pagging'][0], max_issues_per_page)
+
+    #Necesito guardar el numero de issues segun query para el paginado pq es lento
+    if user_data['tipo_tarea'] == '#resuelta':
+        if not user_data.get('issue_count_resueltas'):
+            user_data['issue_count_resueltas'] = connection.getNumberOfIssues(query+' y #'+user_data['proyecto'])
+        issue_count = user_data['issue_count_resueltas']
+    else:
+        if not user_data.get('issue_count_no_resueltas'):
+            user_data['issue_count_no_resueltas'] = connection.getNumberOfIssues(query+' y #'+user_data['proyecto'])
+        issue_count = user_data['issue_count_no_resueltas']
 
     keyboard = []
     texto = '*Tareas:* \n '
@@ -218,10 +240,17 @@ def proyecto_elegido(bot, update, user_data):
                                                                                         utf8(issue['summary'])))
         keyboard.append(InlineKeyboardButton(issue['id'], callback_data=issue['id']))
     # Agrego posibilidad de ver otras tareas
-    if user_data['tipo_tarea'] == '#Unresolved':
-        keyboard.append(InlineKeyboardButton('Ver solucionadas', callback_data='#Resolved'))
+    if user_data['tipo_tarea'] == '#{Sin resolver}':
+        keyboard.append(InlineKeyboardButton('Ver solucionadas', callback_data='#resuelta'))
     else:
-        keyboard.append(InlineKeyboardButton('Ver no solucionadas', callback_data='#Unresolved'))
+        keyboard.append(InlineKeyboardButton('Ver no solucionadas', callback_data='#{Sin resolver}'))
+
+    #Paginado
+    if user_data['pagging'][0] > 0:
+        keyboard.append(InlineKeyboardButton('<', callback_data='<'))
+    if len(issues)>=5:
+        keyboard.append(InlineKeyboardButton('>', callback_data='>'))
+
     # Acomodo el teclado
     keyboard = [keyboard[i:i + 3] for i in range(0, len(keyboard), 3)]
     reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
